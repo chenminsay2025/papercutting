@@ -5,11 +5,10 @@ __pycache__/
 .Python
 *.log
 
-# Keil / STM32 build outputs
+# Keil / STM32 build outputs (keep project uvoptx/dbgconf)
 Objects/
 Listings/
 *.uvguix.*
-*.uvoptx
 *.dep
 *.htm
 *.lnp
@@ -18,6 +17,7 @@ Listings/
 *.d
 *.o
 *.crf
+*.axf
 
 # Electron
 out/

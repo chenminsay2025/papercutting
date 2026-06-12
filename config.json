@@ -16,7 +16,7 @@
     "send_hotkey": "ctrl+p"
   },
   "app": {
-    "simulation_mode": true,
+    "simulation_mode": false,
     "simulate_cut": true
   }
 }

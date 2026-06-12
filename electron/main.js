@@ -114,10 +114,10 @@ function sendCommand(message) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 720,
-    height: 580,
-    minWidth: 640,
-    minHeight: 480,
+    width: 760,
+    height: 620,
+    minWidth: 680,
+    minHeight: 520,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,

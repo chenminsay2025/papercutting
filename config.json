@@ -1,0 +1,22 @@
+{
+  "serial": {
+    "port": "SIM（模拟）",
+    "baudrate": 115200,
+    "timeout_ms": 2000
+  },
+  "timings_ms": {
+    "retract": 3000,
+    "extend": 3000,
+    "cut_wait": 6000,
+    "relay_pulse": 200,
+    "before_send_keys": 300
+  },
+  "cutting_master": {
+    "window_title_contains": "Cutting Master",
+    "send_hotkey": "ctrl+p"
+  },
+  "app": {
+    "simulation_mode": true,
+    "simulate_cut": true
+  }
+}

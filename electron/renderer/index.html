@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CutPPaper 控制</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="brand">
+          <div class="logo">CP</div>
+          <div>
+            <h1>CutPPaper</h1>
+            <p class="subtitle">放纸 → 开始 → 自动流程</p>
+          </div>
+        </div>
+        <div class="status-badges">
+          <span id="pythonStatus" class="badge badge-off">Python</span>
+          <span id="modeStatus" class="badge badge-sim">模拟</span>
+          <span id="serialStatus" class="badge badge-off">未连接</span>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel workflow-panel">
+          <div class="manual-card">
+            <span class="manual-step">1</span>
+            <span><strong>手动放纸</strong>，到位后点开始</span>
+          </div>
+
+          <div class="step-timeline" id="stepTimeline"></div>
+
+          <div class="hero-status">
+            <div class="hero-row">
+              <div id="phaseLabel" class="hero-title">空闲</div>
+              <div class="hero-meta">
+                <span id="progressText">0/0ms</span>
+                <span id="cycleHint">~0s</span>
+              </div>
+            </div>
+            <div class="progress-bar"><div id="progressFill"></div></div>
+          </div>
+
+          <div class="action-row">
+            <button id="startBtn" type="button" class="btn btn-primary btn-large">开始本轮</button>
+            <button id="estopBtn" type="button" class="btn btn-danger btn-compact">急停</button>
+          </div>
+
+          <div class="test-section">
+            <div class="test-grid">
+              <button data-step="retract" type="button" class="btn btn-secondary btn-xs">缩回</button>
+              <button data-step="pulse_a" type="button" class="btn btn-secondary btn-xs">继续A</button>
+              <button data-step="send_cut" type="button" class="btn btn-secondary btn-xs">Ctrl+P</button>
+              <button data-step="extend" type="button" class="btn btn-secondary btn-xs">伸出</button>
+              <button data-step="pulse_b" type="button" class="btn btn-secondary btn-xs">原点B</button>
+            </div>
+          </div>
+        </section>
+
+        <aside class="sidebar">
+          <section class="panel panel-compact">
+            <div class="inline-toggles">
+              <label class="toggle-row"><input id="simulationMode" type="checkbox" checked /><span>模拟硬件</span></label>
+              <label class="toggle-row"><input id="simulateCut" type="checkbox" checked /><span>跳过CM4</span></label>
+            </div>
+            <div class="serial-row" id="serialPanel">
+              <select id="portSelect" title="串口"></select>
+              <button id="refreshPortsBtn" type="button" class="btn btn-secondary btn-xs">刷新</button>
+              <button id="connectBtn" type="button" class="btn btn-primary btn-xs">连接</button>
+              <button id="disconnectBtn" type="button" class="btn btn-secondary btn-xs">断</button>
+            </div>
+          </section>
+
+          <details class="panel panel-compact" open>
+            <summary>时序 (ms)</summary>
+            <div class="field-grid">
+              <label>缩回<input id="retractMs" type="number" min="0" step="100" /></label>
+              <label>伸出<input id="extendMs" type="number" min="0" step="100" /></label>
+              <label>切割<input id="cutWaitMs" type="number" min="0" step="100" /></label>
+              <label>脉冲<input id="relayPulseMs" type="number" min="50" step="10" /></label>
+              <label>发前<input id="beforeSendMs" type="number" min="0" step="50" /></label>
+              <label class="full">CM4<input id="windowKeyword" type="text" /></label>
+            </div>
+            <button id="saveConfigBtn" type="button" class="btn btn-secondary btn-xs full-width">保存</button>
+          </details>
+
+          <section class="panel panel-compact log-panel">
+            <div class="log-header">
+              <span>日志</span>
+              <button id="clearLogBtn" type="button" class="btn btn-ghost btn-xs">清空</button>
+            </div>
+            <pre id="logView"></pre>
+          </section>
+        </aside>
+      </main>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

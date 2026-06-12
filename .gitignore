@@ -1,0 +1,27 @@
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.Python
+*.log
+
+# Keil / STM32 build outputs
+Objects/
+Listings/
+*.uvguix.*
+*.uvoptx
+*.dep
+*.htm
+*.lnp
+*.map
+*.lst
+*.d
+*.o
+*.crf
+
+# Electron
+out/
+
+# OS
+.DS_Store
+Thumbs.db

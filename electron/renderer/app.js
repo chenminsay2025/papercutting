@@ -57,9 +57,12 @@ function log(level, message) {
   els.logView.scrollTop = els.logView.scrollHeight;
 }
 
-function setBadge(el, className, text) {
-  el.className = `badge ${className}`;
-  el.textContent = text;
+function setStatus(el, state, text) {
+  el.dataset.state = state;
+  const label = el.querySelector(".status-text");
+  if (label) {
+    label.textContent = text;
+  }
 }
 
 function sendCutBudgetMs(timings) {
@@ -87,8 +90,8 @@ function renderTimeline(activePhase = "idle", donePhases = new Set()) {
       status = "done";
     }
     return `
-      <div class="step-item ${status}">
-        <div class="step-id">${step.id}</div>
+      <div class="step-item ${status}" role="listitem">
+        <div class="step-num">${step.id}</div>
         <div class="step-name">${step.name}</div>
         <div class="step-duration">${duration} ms</div>
       </div>
@@ -147,7 +150,7 @@ function recalcTotalMs() {
   if (!(state.simulation && els.simulateCut.checked)) {
     state.totalMs += sendCutBudgetMs(t);
   }
-  els.cycleHint.textContent = `~${(state.totalMs / 1000).toFixed(1)}s`;
+  els.cycleHint.textContent = `~${(state.totalMs / 1000).toFixed(1)} s`;
   renderTimeline(state.currentPhase);
 }
 
@@ -180,16 +183,16 @@ function readConfigFromForm() {
 
 function updateModeBadge() {
   if (state.simulation) {
-    setBadge(els.modeStatus, "badge-sim", "模拟模式");
+    setStatus(els.modeStatus, "sim", "模拟模式");
   } else {
-    setBadge(els.modeStatus, "badge-off", "硬件模式");
+    setStatus(els.modeStatus, "off", "硬件模式");
   }
 }
 
 function updateProgress(elapsedMs, totalMs, label) {
   const progress = totalMs > 0 ? Math.min(1, elapsedMs / totalMs) : 0;
   els.progressFill.style.width = `${progress * 100}%`;
-  els.progressText.textContent = `${elapsedMs}/${totalMs}ms`;
+  els.progressText.textContent = `${elapsedMs} / ${totalMs} ms`;
   els.phaseLabel.textContent = label;
 }
 
@@ -243,7 +246,7 @@ async function autoConnectSimulation() {
     const response = await sendCommand({ cmd: "connect", port: "SIM（模拟）" });
     if (response.event === "connected") {
       state.connected = true;
-      setBadge(els.serialStatus, "badge-on", "模拟已连接");
+      setStatus(els.serialStatus, "ok", "模拟已连接");
       log("info", "已自动进入模拟连接，可直接测试界面与流程");
       updateControls();
     }
@@ -255,14 +258,14 @@ async function autoConnectSimulation() {
 function handleBackendEvent(payload) {
   switch (payload.event) {
     case "ready":
-      setBadge(els.pythonStatus, "badge-on", "Python 运行中");
+      setStatus(els.pythonStatus, "ok", "后端就绪");
       sendCommand({ cmd: "get_config" }).then((res) => {
         if (res.event === "config") applyConfigToForm(res.config);
         return refreshPorts();
       }).then(autoConnectSimulation);
       break;
     case "python_exit":
-      setBadge(els.pythonStatus, "badge-off", "Python 已退出");
+      setStatus(els.pythonStatus, "err", "后端已退出");
       log("error", payload.message);
       break;
     case "config":
@@ -287,17 +290,17 @@ function handleBackendEvent(payload) {
       state.connected = true;
       state.simulation = payload.simulation === true;
       updateModeBadge();
-      setBadge(
+      setStatus(
         els.serialStatus,
-        "badge-on",
-        payload.simulation ? "模拟已连接" : `已连接 ${payload.port}`
+        "ok",
+        payload.simulation ? "模拟已连接" : payload.port
       );
       log("info", payload.simulation ? "模拟模式已连接" : `串口已连接 ${payload.port}`);
       updateControls();
       break;
     case "disconnected":
       state.connected = false;
-      setBadge(els.serialStatus, "badge-off", "未连接");
+      setStatus(els.serialStatus, "off", "未连接");
       log("info", "连接已断开");
       updateControls();
       break;
@@ -476,6 +479,6 @@ renderTimeline();
 setInterval(async () => {
   const ready = await window.cutppaper.isBackendReady();
   if (!ready) {
-    setBadge(els.pythonStatus, "badge-off", "Python 启动中");
+    setStatus(els.pythonStatus, "warn", "后端启动中");
   }
 }, 1000);

@@ -3,120 +3,185 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CutPPaper 控制</title>
+    <title>CutPPaper</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="app">
-      <header class="header">
-        <div class="brand">
-          <div class="logo">CP</div>
-          <div>
-            <h1>CutPPaper</h1>
-            <p class="subtitle">放纸 → 开始 → 自动流程</p>
-          </div>
+      <header class="topbar">
+        <div class="topbar-title">
+          <h1>CutPPaper</h1>
+          <span class="topbar-desc">切纸自动控制</span>
         </div>
-        <div class="status-badges">
-          <span id="pythonStatus" class="badge badge-off">Python</span>
-          <span id="modeStatus" class="badge badge-sim">模拟</span>
-          <span id="serialStatus" class="badge badge-off">未连接</span>
+        <div class="status-strip" aria-label="系统状态">
+          <div class="status-item" id="pythonStatus" data-state="off">
+            <span class="status-dot"></span>
+            <span class="status-text">后端</span>
+          </div>
+          <div class="status-item" id="modeStatus" data-state="sim">
+            <span class="status-dot"></span>
+            <span class="status-text">模拟</span>
+          </div>
+          <div class="status-item" id="serialStatus" data-state="off">
+            <span class="status-dot"></span>
+            <span class="status-text">未连接</span>
+          </div>
         </div>
       </header>
 
-      <main class="layout">
-        <section class="panel workflow-panel">
-          <div class="manual-card">
-            <span class="manual-step">1</span>
-            <span><strong>手动放纸</strong>，到位后点开始</span>
-          </div>
+      <main class="page-body">
+        <div class="row-op">
+          <section class="card card-main">
+            <div class="card-head">
+              <h2>工艺流程</h2>
+              <span class="hint-text">手动放纸后点击开始</span>
+            </div>
 
-          <div class="step-timeline" id="stepTimeline"></div>
+            <div class="stepper" id="stepTimeline" role="list"></div>
 
-          <div class="hero-status">
-            <div class="hero-row">
-              <div id="phaseLabel" class="hero-title">空闲</div>
-              <div class="hero-meta">
-                <span id="progressText">0/0ms</span>
-                <span id="cycleHint">~0s</span>
+            <div class="run-status">
+              <div class="run-status-head">
+                <span id="phaseLabel" class="run-phase">空闲</span>
+                <div class="run-meta">
+                  <span id="progressText" class="mono">0 / 0 ms</span>
+                  <span class="run-meta-sep">·</span>
+                  <span id="cycleHint" class="mono">~0.0 s</span>
+                </div>
+              </div>
+              <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+                <div id="progressFill" class="progress-fill"></div>
               </div>
             </div>
-            <div class="progress-bar"><div id="progressFill"></div></div>
-          </div>
 
-          <div class="action-row">
-            <button id="startBtn" type="button" class="btn btn-primary btn-large">开始本轮</button>
-            <button id="estopBtn" type="button" class="btn btn-danger btn-compact">急停</button>
-          </div>
-
-          <div class="test-section">
-            <div class="test-grid">
-              <button data-step="retract" type="button" class="btn btn-secondary btn-xs">缩回</button>
-              <button data-step="pulse_a" type="button" class="btn btn-secondary btn-xs">继续A</button>
-              <button data-step="send_cut" type="button" class="btn btn-secondary btn-xs">Ctrl+P</button>
-              <button data-step="extend" type="button" class="btn btn-secondary btn-xs">伸出</button>
-              <button data-step="pulse_b" type="button" class="btn btn-secondary btn-xs">原点B</button>
+            <div class="control-row">
+              <button id="startBtn" type="button" class="btn btn-primary">开始本轮</button>
+              <button id="estopBtn" type="button" class="btn btn-danger">急停</button>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <aside class="sidebar">
-          <section class="panel panel-compact">
-            <div class="inline-toggles">
-              <label class="toggle-row"><input id="simulationMode" type="checkbox" checked /><span>模拟硬件</span></label>
-              <label class="toggle-row"><input id="simulateCut" type="checkbox" checked /><span>跳过CM4</span></label>
+          <aside class="card card-side">
+            <div class="card-head">
+              <h2>连接与调试</h2>
+            </div>
+            <div class="toggle-group toggle-inline">
+              <label class="check-label">
+                <input id="simulationMode" type="checkbox" checked />
+                <span>模拟硬件</span>
+              </label>
+              <label class="check-label">
+                <input id="simulateCut" type="checkbox" checked />
+                <span>跳过 CM4</span>
+              </label>
             </div>
             <div class="serial-block" id="serialPanel">
-              <label class="serial-field serial-port">
-                串口
-                <select id="portSelect" title="串口"></select>
+              <label class="field field-inline">
+                <span class="field-label">串口</span>
+                <select id="portSelect" class="input-grow"></select>
               </label>
-              <div class="serial-actions">
-                <label class="serial-field">
-                  波特率
-                  <input id="baudrate" type="number" min="9600" step="100" title="波特率" />
+              <div class="field-inline-row">
+                <label class="field field-inline">
+                  <span class="field-label">波特率</span>
+                  <input id="baudrate" class="input-num" type="number" min="9600" step="100" />
                 </label>
-                <label class="serial-field">
-                  超时 (ms)
-                  <input id="timeoutMs" type="number" min="500" step="100" title="超时 ms" />
+                <label class="field field-inline">
+                  <span class="field-label">超时</span>
+                  <input id="timeoutMs" class="input-num" type="number" min="500" step="100" />
+                  <span class="field-unit">ms</span>
                 </label>
-                <div class="serial-btns">
-                  <button id="refreshPortsBtn" type="button" class="btn btn-secondary btn-xs">刷新</button>
-                  <button id="connectBtn" type="button" class="btn btn-primary btn-xs">连接</button>
-                  <button id="disconnectBtn" type="button" class="btn btn-secondary btn-xs">断开</button>
+              </div>
+              <div class="btn-row btn-row-tight">
+                <button id="refreshPortsBtn" type="button" class="btn btn-outline">刷新</button>
+                <button id="connectBtn" type="button" class="btn btn-primary">连接</button>
+                <button id="disconnectBtn" type="button" class="btn btn-outline">断开</button>
+              </div>
+            </div>
+            <div class="side-debug">
+              <div class="card-subhead">单步调试</div>
+              <div class="btn-row btn-row-grid">
+                <button data-step="retract" type="button" class="btn btn-outline">缩回</button>
+                <button data-step="pulse_a" type="button" class="btn btn-outline">继续 A</button>
+                <button data-step="send_cut" type="button" class="btn btn-outline">Ctrl+P</button>
+                <button data-step="extend" type="button" class="btn btn-outline">伸出</button>
+                <button data-step="pulse_b" type="button" class="btn btn-outline">原点 B</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <details class="card card-settings">
+          <summary class="card-head card-head-click">
+            <h2>时序与热键参数</h2>
+            <span class="summary-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="settings-body">
+            <div class="settings-group">
+              <div class="settings-group-title">电机 / 继电器</div>
+              <div class="field-inline-row field-wrap">
+                <label class="field field-inline">
+                  <span class="field-label">缩回</span>
+                  <input id="retractMs" class="input-num" type="number" min="0" step="100" />
+                  <span class="field-unit">ms</span>
+                </label>
+                <label class="field field-inline">
+                  <span class="field-label">伸出</span>
+                  <input id="extendMs" class="input-num" type="number" min="0" step="100" />
+                  <span class="field-unit">ms</span>
+                </label>
+                <label class="field field-inline">
+                  <span class="field-label">切割等待</span>
+                  <input id="cutWaitMs" class="input-num" type="number" min="0" step="100" />
+                  <span class="field-unit">ms</span>
+                </label>
+                <label class="field field-inline">
+                  <span class="field-label">继电器脉冲</span>
+                  <input id="relayPulseMs" class="input-num" type="number" min="50" step="10" />
+                  <span class="field-unit">ms</span>
+                </label>
+              </div>
+            </div>
+            <div class="settings-group">
+              <div class="settings-group-title">Cutting Master</div>
+              <div class="field-inline-row field-wrap">
+                <label class="field field-inline">
+                  <span class="field-label">窗口关键字</span>
+                  <input id="windowKeyword" class="input-text-md" type="text" placeholder="Cutting Master" />
+                </label>
+                <label class="field field-inline">
+                  <span class="field-label">热键</span>
+                  <input id="sendHotkey" class="input-text-sm" type="text" placeholder="ctrl+p" />
+                </label>
+                <label class="field field-inline">
+                  <span class="field-label">焦点超时</span>
+                  <input id="beforeSendMs" class="input-num" type="number" min="0" step="100" />
+                  <span class="field-unit">ms</span>
+                </label>
+                <label class="field field-inline">
+                  <span class="field-label">获焦后</span>
+                  <input id="afterFocusMs" class="input-num" type="number" min="0" step="50" />
+                  <span class="field-unit">ms</span>
+                </label>
+                <label class="field field-inline">
+                  <span class="field-label">热键后</span>
+                  <input id="afterHotkeyMs" class="input-num" type="number" min="0" step="50" />
+                  <span class="field-unit">ms</span>
+                </label>
+                <div class="field field-inline field-actions-inline">
+                  <button id="testWindowBtn" type="button" class="btn btn-outline">测试窗口</button>
+                  <button id="testHotkeyBtn" type="button" class="btn btn-outline">测试热键</button>
+                  <button id="saveConfigBtn" type="button" class="btn btn-outline">保存</button>
                 </div>
               </div>
             </div>
-          </section>
+          </div>
+        </details>
 
-          <details class="panel panel-compact" open>
-            <summary>时序 (ms)</summary>
-            <div class="field-grid">
-              <label>缩回<input id="retractMs" type="number" min="0" step="100" /></label>
-              <label>伸出<input id="extendMs" type="number" min="0" step="100" /></label>
-              <label>切割<input id="cutWaitMs" type="number" min="0" step="100" /></label>
-              <label>脉冲<input id="relayPulseMs" type="number" min="50" step="10" /></label>
-              <label class="full">窗口关键字<input id="windowKeyword" type="text" placeholder="标题包含此文字即可" title="切割软件窗口标题中的任意片段" /></label>
-              <label>发送热键<input id="sendHotkey" type="text" placeholder="ctrl+p" title="激活窗口后发送的快捷键" /></label>
-              <label class="full cut-timing-hint">切割热键时序（激活 → 获焦 → 按热键 → 回本项目）</label>
-              <label>焦点超时 (ms)<input id="beforeSendMs" type="number" min="0" step="100" title="① 激活目标窗口后，最多等待多久以获得焦点。不必等满，获焦即进入下一步；超时仍无焦点则报错。" /></label>
-              <label>获焦后延迟 (ms)<input id="afterFocusMs" type="number" min="0" step="50" title="② 已获得焦点后、按下热键前的固定等待。给切割软件反应时间。" /></label>
-              <label>热键后延迟 (ms)<input id="afterHotkeyMs" type="number" min="0" step="50" title="③ 热键发送完成后、切回本程序前的固定等待。给切割软件处理命令的时间。" /></label>
-              <div class="cut-test-row">
-                <button id="testWindowBtn" type="button" class="btn btn-secondary btn-xs">测试窗口</button>
-                <button id="testHotkeyBtn" type="button" class="btn btn-secondary btn-xs">测试热键</button>
-              </div>
-            </div>
-            <button id="saveConfigBtn" type="button" class="btn btn-secondary btn-xs full-width">保存</button>
-          </details>
-
-          <section class="panel panel-compact log-panel">
-            <div class="log-header">
-              <span>日志</span>
-              <button id="clearLogBtn" type="button" class="btn btn-ghost btn-xs">清空</button>
-            </div>
-            <pre id="logView"></pre>
-          </section>
-        </aside>
+        <section class="card card-log">
+          <div class="card-head card-head-inline">
+            <h2>运行日志</h2>
+            <button id="clearLogBtn" type="button" class="btn btn-text">清空</button>
+          </div>
+          <pre id="logView" class="log-view"></pre>
+        </section>
       </main>
     </div>
     <script src="app.js"></script>

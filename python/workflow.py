@@ -35,8 +35,9 @@ PHASE_LABELS = {
 
 
 class WorkflowRunner:
-    def __init__(self, emit: Callable[[dict[str, Any]], None]):
+    def __init__(self, emit: Callable[[dict[str, Any]], None], client_lock: threading.Lock | None = None):
         self._emit = emit
+        self._client_lock = client_lock or threading.RLock()
         self._thread: Optional[threading.Thread] = None
         self._cancel = threading.Event()
         self._client: Optional[Stm32Client] = None
@@ -54,7 +55,8 @@ class WorkflowRunner:
         return self._running
 
     def attach_client(self, client: Optional[Stm32Client]) -> None:
-        self._client = client
+        with self._client_lock:
+            self._client = client
 
     def set_mode(self, simulation: bool, simulate_cut: bool) -> None:
         self._simulation = simulation
@@ -63,8 +65,9 @@ class WorkflowRunner:
     def start_cycle(self, config: dict[str, Any]) -> None:
         if self._running:
             raise RuntimeError("流程正在运行")
-        if self._client is None or not self._client.connected:
-            raise RuntimeError("请先连接（模拟或真实串口）")
+        with self._client_lock:
+            if self._client is None or not self._client.connected:
+                raise RuntimeError("请先连接（模拟或真实串口）")
 
         app_cfg = config.get("app", {})
         self._simulation = bool(app_cfg.get("simulation_mode", False))
@@ -82,15 +85,17 @@ class WorkflowRunner:
 
     def estop(self) -> None:
         self._cancel.set()
-        if self._client is not None:
-            self._client.estop()
+        with self._client_lock:
+            if self._client is not None:
+                self._client.estop()
         self._set_phase(Phase.ABORTED, "已执行急停")
 
     def test_step(self, step: str, config: dict[str, Any]) -> None:
         if self._running:
             raise RuntimeError("流程正在运行，无法单步测试")
-        if self._client is None or not self._client.connected:
-            raise RuntimeError("请先连接")
+        with self._client_lock:
+            if self._client is None or not self._client.connected:
+                raise RuntimeError("请先连接")
 
         app_cfg = config.get("app", {})
         self._simulation = bool(app_cfg.get("simulation_mode", False))
@@ -100,18 +105,24 @@ class WorkflowRunner:
         cm = config["cutting_master"]
 
         if step == "retract":
-            self._client.retract()
+            with self._client_lock:
+                self._client.retract()
             wait_ms(timings["retract"], threading.Event())
-            self._client.stop()
+            with self._client_lock:
+                self._client.stop()
         elif step == "extend":
-            self._client.extend()
+            with self._client_lock:
+                self._client.extend()
             wait_ms(timings["extend"], threading.Event())
-            self._client.stop()
+            with self._client_lock:
+                self._client.stop()
         elif step == "pulse_a":
-            self._client.pulse_a(timings["relay_pulse"])
+            with self._client_lock:
+                self._client.pulse_a(timings["relay_pulse"])
             wait_ms(timings["relay_pulse"] + 50, threading.Event())
         elif step == "pulse_b":
-            self._client.pulse_b(timings["relay_pulse"])
+            with self._client_lock:
+                self._client.pulse_b(timings["relay_pulse"])
             wait_ms(timings["relay_pulse"] + 50, threading.Event())
         elif step == "send_cut":
             if self._simulation and self._simulate_cut:
@@ -139,7 +150,7 @@ class WorkflowRunner:
         )
         if self._simulation and self._simulate_cut:
             total_ms -= timings["before_send_keys"]
-        cycle_start = time.time()
+        cycle_start = time.monotonic()
 
         try:
             self._step_retract(timings["retract"], total_ms, cycle_start)
@@ -162,23 +173,26 @@ class WorkflowRunner:
             self._running = False
 
     def _ensure_client(self) -> Stm32Client:
-        if self._client is None:
-            raise RuntimeError("未连接")
-        return self._client
+        with self._client_lock:
+            if self._client is None:
+                raise RuntimeError("未连接")
+            return self._client
 
     def _step_retract(self, duration_ms: int, total_ms: int, cycle_start: float) -> None:
-        client = self._ensure_client()
         self._set_phase(Phase.RETRACT, "开始缩回")
-        client.retract()
+        with self._client_lock:
+            self._ensure_client().retract()
         if not self._wait(duration_ms, Phase.RETRACT, total_ms, cycle_start):
-            client.stop()
+            with self._client_lock:
+                self._ensure_client().stop()
             raise RuntimeError("缩回阶段被中止")
-        client.stop()
+        with self._client_lock:
+            self._ensure_client().stop()
 
     def _step_pulse_a(self, duration_ms: int, total_ms: int, cycle_start: float) -> None:
-        client = self._ensure_client()
         self._set_phase(Phase.PULSE_A, "继电器A 脉冲（继续）")
-        client.pulse_a(duration_ms)
+        with self._client_lock:
+            self._ensure_client().pulse_a(duration_ms)
         if not self._wait(duration_ms + 30, Phase.PULSE_A, total_ms, cycle_start):
             raise RuntimeError("继电器A 阶段被中止")
 
@@ -193,7 +207,7 @@ class WorkflowRunner:
                 timings["before_send_keys"],
             )
             self._emit_log("info", f"已发送 {cm['send_hotkey']} -> {title}")
-        elapsed = int((time.time() - cycle_start) * 1000)
+        elapsed = int((time.monotonic() - cycle_start) * 1000)
         self._emit_progress(Phase.SEND_CUT, elapsed, total_ms, "切割任务已发送")
 
     def _step_cut_wait(self, duration_ms: int, total_ms: int, cycle_start: float) -> None:
@@ -202,24 +216,26 @@ class WorkflowRunner:
             raise RuntimeError("切割等待阶段被中止")
 
     def _step_extend(self, duration_ms: int, total_ms: int, cycle_start: float) -> None:
-        client = self._ensure_client()
         self._set_phase(Phase.EXTEND, "开始伸出")
-        client.extend()
+        with self._client_lock:
+            self._ensure_client().extend()
         if not self._wait(duration_ms, Phase.EXTEND, total_ms, cycle_start):
-            client.stop()
+            with self._client_lock:
+                self._ensure_client().stop()
             raise RuntimeError("伸出阶段被中止")
-        client.stop()
+        with self._client_lock:
+            self._ensure_client().stop()
 
     def _step_pulse_b(self, duration_ms: int, total_ms: int, cycle_start: float) -> None:
-        client = self._ensure_client()
         self._set_phase(Phase.PULSE_B, "继电器B 脉冲（原点）")
-        client.pulse_b(duration_ms)
+        with self._client_lock:
+            self._ensure_client().pulse_b(duration_ms)
         if not self._wait(duration_ms + 30, Phase.PULSE_B, total_ms, cycle_start):
             raise RuntimeError("继电器B 阶段被中止")
 
     def _wait(self, duration_ms: int, phase: Phase, total_ms: int, cycle_start: float) -> bool:
         def on_tick(_elapsed_step_ms: int, _step_total_ms: int) -> None:
-            elapsed_cycle_ms = int((time.time() - cycle_start) * 1000)
+            elapsed_cycle_ms = int((time.monotonic() - cycle_start) * 1000)
             self._emit_progress(phase, elapsed_cycle_ms, total_ms, PHASE_LABELS[phase])
 
         return wait_ms(duration_ms, self._cancel, on_tick)

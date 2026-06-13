@@ -3,10 +3,17 @@
 
 static char s_rx_line[SERIAL_RX_BUF_SIZE];
 static volatile uint8_t s_line_ready = 0;
-static uint16_t s_rx_len = 0;
+static volatile uint16_t s_rx_len = 0;
+
+static void Serial_ResetBuffer(void)
+{
+	s_rx_len = 0;
+	s_line_ready = 0;
+}
 
 static void Serial_PushChar(char ch)
 {
+	/* Ignore CR; host sends CRLF and LF terminates the line. */
 	if (ch == '\r')
 	{
 		return;
@@ -22,10 +29,18 @@ static void Serial_PushChar(char ch)
 		return;
 	}
 
-	if (!s_line_ready && s_rx_len < SERIAL_RX_BUF_SIZE - 1)
+	if (s_line_ready)
 	{
-		s_rx_line[s_rx_len++] = ch;
+		return;
 	}
+
+	if (s_rx_len >= SERIAL_RX_BUF_SIZE - 1)
+	{
+		Serial_ResetBuffer();
+		return;
+	}
+
+	s_rx_line[s_rx_len++] = ch;
 }
 
 void Serial_Init(void)
@@ -83,13 +98,17 @@ void Serial_SendLine(const char *str)
 uint8_t Serial_ReadLine(char *line, uint16_t max_len)
 {
 	uint16_t copy_len;
+	uint32_t primask;
+
+	primask = __get_PRIMASK();
+	__disable_irq();
 
 	if (!s_line_ready)
 	{
+		__set_PRIMASK(primask);
 		return 0;
 	}
 
-	__disable_irq();
 	copy_len = s_rx_len;
 	if (copy_len >= max_len)
 	{
@@ -99,7 +118,8 @@ uint8_t Serial_ReadLine(char *line, uint16_t max_len)
 	line[copy_len] = '\0';
 	s_rx_len = 0;
 	s_line_ready = 0;
-	__enable_irq();
+
+	__set_PRIMASK(primask);
 	return 1;
 }
 

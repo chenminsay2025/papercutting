@@ -19,6 +19,8 @@
 
 void Board_Init(void);
 void Board_TickInc(void);
+void Board_FeedWatchdog(void);
+void Board_DelayMs(uint32_t ms);
 uint32_t Board_GetTickMs(void);
 
 #endif

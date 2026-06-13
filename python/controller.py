@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import atexit
 import json
 import sys
 import threading
 import traceback
 from typing import Any
 
-from config import load_config, save_config
+from config import load_config, save_config, validate_config
 from mock_stm32 import MockStm32Client
 from serial_stm32 import Stm32Client
 from workflow import WorkflowRunner
@@ -17,9 +18,24 @@ class ControllerService:
         self.config = load_config()
         self.client: Stm32Client | MockStm32Client | None = None
         self._using_mock = False
-        self.workflow = WorkflowRunner(self.emit)
+        self._client_lock = threading.RLock()
+        self._pending_client_refresh = False
+        self.workflow = WorkflowRunner(self.emit, client_lock=self._client_lock)
         self._write_lock = threading.Lock()
         self._ensure_client()
+        atexit.register(self._shutdown)
+
+    def _shutdown(self) -> None:
+        try:
+            with self._client_lock:
+                if self.client is not None and self.client.connected:
+                    try:
+                        self.client.estop()
+                    except Exception:
+                        pass
+                    self.client.close()
+        except Exception:
+            pass
 
     def _log_from_mock(self, level: str, message: str) -> None:
         self.emit({"event": "log", "level": level, "message": message})
@@ -40,15 +56,49 @@ class ControllerService:
             self._using_mock = False
         self.workflow.attach_client(self.client)
 
-    def _recreate_client_if_needed(self) -> None:
+    def _apply_client_settings(self) -> None:
+        if self.client is None or self._using_mock:
+            return
+        self.client.port = self.config["serial"]["port"]
+        self.client.baudrate = self.config["serial"]["baudrate"]
+        self.client.timeout = self.config["serial"]["timeout_ms"] / 1000.0
+
+    def _recreate_client_if_needed(self, *, force: bool = False) -> None:
+        if self.workflow.running and not force:
+            self._pending_client_refresh = True
+            return
+
         simulation = self.config.get("app", {}).get("simulation_mode", True)
         if simulation != self._using_mock:
-            if self.client is not None:
-                self.client.close()
-            self.client = None
+            with self._client_lock:
+                if self.client is not None:
+                    self.client.close()
+                self.client = None
             self._ensure_client()
+        else:
+            with self._client_lock:
+                self._apply_client_settings()
+
+        self._pending_client_refresh = False
+
+    def _apply_pending_client_refresh(self) -> None:
+        if self._pending_client_refresh and not self.workflow.running:
+            self._recreate_client_if_needed(force=True)
+
+    def _merge_config(self, incoming: dict[str, Any]) -> dict[str, Any]:
+        merged = deepcopy_config(self.config)
+        for key, value in incoming.items():
+            if isinstance(value, dict) and isinstance(merged.get(key), dict):
+                merged[key].update(value)
+            else:
+                merged[key] = value
+        return merged
 
     def emit(self, payload: dict[str, Any], request_id: str | None = None) -> None:
+        event = payload.get("event")
+        if event in ("cycle_done", "cycle_aborted"):
+            self._apply_pending_client_refresh()
+
         if request_id:
             payload = {**payload, "id": request_id}
         line = json.dumps(payload, ensure_ascii=False)
@@ -74,19 +124,18 @@ class ControllerService:
 
             if cmd == "save_config":
                 incoming = message.get("config", {})
-                merged = load_config()
-                for key, value in incoming.items():
-                    if isinstance(value, dict) and isinstance(merged.get(key), dict):
-                        merged[key].update(value)
-                    else:
-                        merged[key] = value
+                merged = self._merge_config(incoming)
+                errors = validate_config(merged)
+                if errors:
+                    reply({"event": "error", "message": "; ".join(errors)})
+                    return
+
                 self.config = merged
                 save_config(self.config)
                 self._recreate_client_if_needed()
-                if self.client and not self._using_mock:
-                    self.client.port = self.config["serial"]["port"]
-                    self.client.baudrate = self.config["serial"]["baudrate"]
-                    self.client.timeout = self.config["serial"]["timeout_ms"] / 1000.0
+                if not self.workflow.running:
+                    with self._client_lock:
+                        self._apply_client_settings()
                 reply({"event": "config_saved", "config": self.config})
                 return
 
@@ -99,16 +148,19 @@ class ControllerService:
                 return
 
             if cmd == "connect":
-                self._recreate_client_if_needed()
+                if self.workflow.running:
+                    raise RuntimeError("流程运行中，无法连接/切换串口")
+                self._recreate_client_if_needed(force=True)
                 port = message.get("port") or self.config["serial"]["port"]
                 simulation = self.config.get("app", {}).get("simulation_mode", True)
 
-                if simulation or str(port).startswith("SIM"):
+                if simulation:
                     self.config.setdefault("app", {})["simulation_mode"] = True
-                    self._recreate_client_if_needed()
-                    assert self.client is not None
-                    self.client.connect()
-                    response = self.client.ping()
+                    self._recreate_client_if_needed(force=True)
+                    with self._client_lock:
+                        assert self.client is not None
+                        self.client.connect()
+                        response = self.client.ping()
                     reply(
                         {
                             "event": "connected",
@@ -122,17 +174,21 @@ class ControllerService:
                 self.config.setdefault("app", {})["simulation_mode"] = False
                 self.config["serial"]["port"] = port
                 save_config(self.config)
-                self._recreate_client_if_needed()
-                assert self.client is not None
-                self.client.port = port
-                self.client.connect()
-                response = self.client.ping()
+                self._recreate_client_if_needed(force=True)
+                with self._client_lock:
+                    assert self.client is not None
+                    self.client.port = port
+                    self.client.connect()
+                    response = self.client.ping()
                 reply({"event": "connected", "port": port, "response": response, "simulation": False})
                 return
 
             if cmd == "disconnect":
-                if self.client is not None:
-                    self.client.close()
+                if self.workflow.running:
+                    raise RuntimeError("流程运行中，无法断开连接")
+                with self._client_lock:
+                    if self.client is not None:
+                        self.client.close()
                 reply({"event": "disconnected"})
                 return
 
@@ -153,15 +209,22 @@ class ControllerService:
                 return
 
             if cmd == "serial_ping":
-                if self.client is None or not self.client.connected:
-                    raise RuntimeError("未连接")
-                response = self.client.ping()
+                with self._client_lock:
+                    if self.client is None or not self.client.connected:
+                        raise RuntimeError("未连接")
+                    response = self.client.ping()
                 reply({"event": "serial_ping", "response": response})
                 return
 
             reply({"event": "error", "message": f"未知命令: {cmd}"})
         except Exception as exc:
             reply({"event": "error", "message": str(exc), "trace": traceback.format_exc()})
+
+
+def deepcopy_config(config: dict[str, Any]) -> dict[str, Any]:
+    from copy import deepcopy
+
+    return deepcopy(config)
 
 
 def main() -> None:

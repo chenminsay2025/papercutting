@@ -18,6 +18,8 @@ int main(void)
 	while (1)
 	{
 		Protocol_Poll();
+		Protocol_CheckCommTimeout();
 		Relay_Tick();
+		Board_FeedWatchdog();
 	}
 }

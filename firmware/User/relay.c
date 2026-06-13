@@ -1,6 +1,8 @@
 #include "relay.h"
 #include "board.h"
 
+#define RELAY_PULSE_MS_MAX 5000
+
 typedef struct
 {
 	uint8_t active;
@@ -60,6 +62,10 @@ static void Relay_StartPulse(uint8_t which, uint32_t duration_ms)
 	if (duration_ms == 0)
 	{
 		duration_ms = 1;
+	}
+	if (duration_ms > RELAY_PULSE_MS_MAX)
+	{
+		duration_ms = RELAY_PULSE_MS_MAX;
 	}
 
 	Relay_AllOff();

@@ -2,11 +2,17 @@
 #include "usart_serial.h"
 #include "motor.h"
 #include "relay.h"
+#include "board.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
+#define PULSE_MS_MAX 5000
+#define COMM_TIMEOUT_MS 70000
+
 static char s_cmd_line[SERIAL_RX_BUF_SIZE];
+static uint32_t s_last_comm_tick = 0;
+static uint8_t s_comm_timed_out = 0;
 
 static void Protocol_ToUpper(char *str)
 {
@@ -38,11 +44,21 @@ static uint32_t Protocol_ParsePulseMs(const char *line, uint32_t default_ms)
 	{
 		value = 1;
 	}
+	if (value > PULSE_MS_MAX)
+	{
+		value = PULSE_MS_MAX;
+	}
 	return (uint32_t)value;
 }
 
 static void Protocol_SendStatus(void)
 {
+	if (s_comm_timed_out)
+	{
+		Serial_SendLine("STATUS:TIMEOUT");
+		return;
+	}
+
 	switch (Motor_GetState())
 	{
 	case MOTOR_STATE_RETRACT:
@@ -64,10 +80,17 @@ static void Protocol_SendStatus(void)
 	}
 }
 
+static void Protocol_TouchComm(void)
+{
+	s_last_comm_tick = Board_GetTickMs();
+	s_comm_timed_out = 0;
+}
+
 static void Protocol_HandleLine(char *line)
 {
 	uint32_t pulse_ms;
 
+	Protocol_TouchComm();
 	Protocol_ToUpper(line);
 
 	if (strcmp(line, "PING") == 0)
@@ -132,6 +155,7 @@ static void Protocol_HandleLine(char *line)
 
 void Protocol_Init(void)
 {
+	s_last_comm_tick = Board_GetTickMs();
 }
 
 void Protocol_Poll(void)
@@ -139,5 +163,22 @@ void Protocol_Poll(void)
 	if (Serial_ReadLine(s_cmd_line, sizeof(s_cmd_line)))
 	{
 		Protocol_HandleLine(s_cmd_line);
+	}
+}
+
+void Protocol_CheckCommTimeout(void)
+{
+	uint32_t now = Board_GetTickMs();
+
+	if (s_comm_timed_out)
+	{
+		return;
+	}
+
+	if ((now - s_last_comm_tick) >= COMM_TIMEOUT_MS)
+	{
+		Motor_EStop();
+		Relay_AllOff();
+		s_comm_timed_out = 1;
 	}
 }

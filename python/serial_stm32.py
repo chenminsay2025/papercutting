@@ -41,8 +41,8 @@ class Stm32Client:
     def _drain_boot_messages(self) -> None:
         if self._ser is None:
             return
-        deadline = time.time() + 0.5
-        while time.time() < deadline:
+        deadline = time.monotonic() + 0.5
+        while time.monotonic() < deadline:
             line = self._read_line_nowait()
             if line is None:
                 time.sleep(0.05)
@@ -67,10 +67,14 @@ class Stm32Client:
         self._ser.reset_input_buffer()
         self._ser.write(payload)
 
-        deadline = time.time() + self.timeout
-        while time.time() < deadline:
+        deadline = time.monotonic() + self.timeout
+        first = True
+        while time.monotonic() < deadline:
             line = self._read_line_nowait()
             if line is None:
+                if first:
+                    first = False
+                    continue
                 time.sleep(0.01)
                 continue
             if line.startswith("OK") or line.startswith("ERR") or line.startswith("STATUS"):
@@ -106,15 +110,22 @@ def wait_ms(duration_ms: int, cancel_event, on_tick: Optional[Callable[[int, int
     if duration_ms <= 0:
         return True
 
-    start = time.time()
+    start = time.monotonic()
     total = duration_ms
     while True:
         if cancel_event.is_set():
             return False
 
-        elapsed_ms = int((time.time() - start) * 1000)
+        elapsed_ms = int((time.monotonic() - start) * 1000)
         if on_tick is not None:
             on_tick(min(elapsed_ms, total), total)
         if elapsed_ms >= total:
             return True
-        time.sleep(0.05)
+
+        remaining = total - elapsed_ms
+        if remaining > 100:
+            time.sleep(0.05)
+        elif remaining > 20:
+            time.sleep(0.01)
+        else:
+            time.sleep(0.001)

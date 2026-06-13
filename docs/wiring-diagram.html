@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CutPPaper 接线图</title>
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --panel: #fff;
+      --text: #102a43;
+      --muted: #627d98;
+      --border: #d9e2ec;
+      --pc: #7c3aed;
+      --comm: #2563eb;
+      --motor: #ea580c;
+      --relay: #059669;
+      --power: #dc2626;
+      --mcu: #0369a1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 { font-size: 18px; font-weight: 700; }
+    header p { font-size: 13px; color: var(--muted); }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-left: auto;
+    }
+    .tab {
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .tab.active {
+      background: var(--comm);
+      color: #fff;
+      border-color: var(--comm);
+    }
+    main { padding: 16px; max-width: 1200px; margin: 0 auto; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .canvas-wrap {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      overflow: auto;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 12px;
+      font-size: 12px;
+    }
+    .legend span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .detail-box {
+      margin-top: 16px;
+      padding: 14px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .detail-box h3 { font-size: 15px; margin-bottom: 8px; }
+    .detail-box ul { padding-left: 20px; }
+    .detail-box li { margin: 4px 0; }
+    svg text { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+    .pin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+    .pin-table th, .pin-table td {
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      text-align: left;
+    }
+    .pin-table th { background: #eff6ff; }
+    .highlight { font-weight: 700; }
+    @media print {
+      header { position: static; }
+      .tabs { display: none; }
+      .view { display: block !important; page-break-after: always; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>CutPPaper 接线图</h1>
+      <p>STM32F103C8T6 · 点击节点查看说明</p>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-view="mindmap">总览思维导图</button>
+      <button class="tab" data-view="flow">工艺流程</button>
+      <button class="tab" data-view="pins">引脚图</button>
+      <button class="tab" data-view="stlink">ST-LINK</button>
+      <button class="tab" data-view="ttl">USB-TTL</button>
+      <button class="tab" data-view="motor">伸缩杆</button>
+      <button class="tab" data-view="relay">继电器 A/B</button>
+      <button class="tab" data-view="power">电源共地</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- 思维导图总览 -->
+    <section id="view-mindmap" class="view active">
+      <div class="canvas-wrap">
+        <svg id="svg-mindmap" viewBox="0 0 960 620" width="100%" style="min-width:720px">
+          <defs>
+            <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+              <path d="M0,0 L8,3 L0,6 Z" fill="#94a3b8"/>
+            </marker>
+          </defs>
+          <!-- 中心 MCU -->
+          <rect x="380" y="260" width="200" height="100" rx="12" fill="#0369a1" stroke="#0c4a6e" stroke-width="2"/>
+          <text x="480" y="295" text-anchor="middle" fill="#fff" font-size="16" font-weight="700">STM32F103C8T6</text>
+          <text x="480" y="318" text-anchor="middle" fill="#bae6fd" font-size="12">PA0~PA3 输出 · PA9/10 串口</text>
+          <text x="480" y="338" text-anchor="middle" fill="#bae6fd" font-size="12">PA13/14 SWD 烧录</text>
+
+          <!-- PC 分支 -->
+          <line x1="480" y1="260" x2="480" y2="80" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow)"/>
+          <rect x="340" y="20" width="280" height="56" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+          <text x="480" y="44" text-anchor="middle" fill="#5b21b6" font-size="14" font-weight="700">电 脑</text>
+          <text x="480" y="64" text-anchor="middle" fill="#6d28d9" font-size="11">CutPPaper → USB-TTL → STM32</text>
+          <text x="480" y="78" text-anchor="middle" fill="#6d28d9" font-size="11">CutPPaper → Ctrl+P → Cutting Master 4</text>
+
+          <!-- ST-LINK -->
+          <line x1="380" y1="290" x2="180" y2="120" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow)"/>
+          <rect x="60" y="80" width="160" height="70" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+          <text x="140" y="108" text-anchor="middle" fill="#1e40af" font-size="13" font-weight="700">ST-LINK V2</text>
+          <text x="140" y="128" text-anchor="middle" fill="#1d4ed8" font-size="11">SWDIO→PA13</text>
+          <text x="140" y="142" text-anchor="middle" fill="#1d4ed8" font-size="11">SWCLK→PA14 · GND</text>
+
+          <!-- USB-TTL -->
+          <line x1="580" y1="290" x2="780" y2="120" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow)"/>
+          <rect x="700" y="80" width="180" height="70" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+          <text x="790" y="108" text-anchor="middle" fill="#1e40af" font-size="13" font-weight="700">USB-TTL 3.3V</text>
+          <text x="790" y="128" text-anchor="middle" fill="#1d4ed8" font-size="11">TX→PA10 · RX→PA9</text>
+          <text x="790" y="142" text-anchor="middle" fill="#1d4ed8" font-size="11">GND 共地 · 115200</text>
+
+          <!-- 电源 -->
+          <line x1="480" y1="360" x2="480" y2="480" stroke="#dc2626" stroke-width="2" marker-end="url(#arrow)"/>
+          <rect x="360" y="480" width="240" height="56" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+          <text x="480" y="504" text-anchor="middle" fill="#991b1b" font-size="14" font-weight="700">12V 电源 + 共地</text>
+          <text x="480" y="524" text-anchor="middle" fill="#b91c1c" font-size="11">12V→电机 · 降压→STM32 · 所有 GND 相连</text>
+
+          <!-- 伸缩杆 PA0 PA1 -->
+          <line x1="380" y1="330" x2="160" y2="420" stroke="#ea580c" stroke-width="2" marker-end="url(#arrow)"/>
+          <rect x="40" y="390" width="200" height="80" rx="10" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+          <text x="140" y="418" text-anchor="middle" fill="#9a3412" font-size="13" font-weight="700">伸缩杆电机</text>
+          <text x="140" y="438" text-anchor="middle" fill="#c2410c" font-size="11">PA0 → 缩回 (IN1)</text>
+          <text x="140" y="454" text-anchor="middle" fill="#c2410c" font-size="11">PA1 → 伸出 (IN2)</text>
+          <text x="140" y="468" text-anchor="middle" fill="#c2410c" font-size="11">经双路继电器/驱动模块</text>
+
+          <!-- 继电器 PA2 PA3 -->
+          <line x1="580" y1="330" x2="800" y2="420" stroke="#059669" stroke-width="2" marker-end="url(#arrow)"/>
+          <rect x="700" y="390" width="220" height="80" rx="10" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+          <text x="810" y="418" text-anchor="middle" fill="#065f46" font-size="13" font-weight="700">机器按钮模拟</text>
+          <text x="810" y="438" text-anchor="middle" fill="#047857" font-size="11">PA2 继电器A → 「继续」</text>
+          <text x="810" y="454" text-anchor="middle" fill="#047857" font-size="11">PA3 继电器B → 「原点」</text>
+          <text x="810" y="468" text-anchor="middle" fill="#047857" font-size="11">NO 触点并联原按钮</text>
+
+          <!-- 底部提示 -->
+          <text x="480" y="580" text-anchor="middle" fill="#64748b" font-size="12">紫色=电脑 · 蓝色=通信 · 橙色=伸缩杆 · 绿色=继电器 · 红色=电源</text>
+        </svg>
+        <div class="legend">
+          <span><i class="dot" style="background:#7c3aed"></i>电脑软件</span>
+          <span><i class="dot" style="background:#2563eb"></i>通信/烧录</span>
+          <span><i class="dot" style="background:#ea580c"></i>伸缩杆</span>
+          <span><i class="dot" style="background:#059669"></i>继电器</span>
+          <span><i class="dot" style="background:#dc2626"></i>电源</span>
+          <span><i class="dot" style="background:#0369a1"></i>STM32</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 工艺流程 -->
+    <section id="view-flow" class="view">
+      <div class="canvas-wrap">
+        <svg viewBox="0 0 900 520" width="100%" style="min-width:680px">
+          <defs>
+            <marker id="arr2" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+              <path d="M0,0 L8,3 L0,6 Z" fill="#64748b"/>
+            </marker>
+          </defs>
+          <!-- 手动 -->
+          <rect x="340" y="10" width="220" height="44" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+          <text x="450" y="38" text-anchor="middle" font-size="14" font-weight="700">1 手动放纸</text>
+          <line x1="450" y1="54" x2="450" y2="74" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+
+          <!-- 开始 -->
+          <rect x="340" y="74" width="220" height="40" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+          <text x="450" y="100" text-anchor="middle" font-size="13">点击「开始本轮」</text>
+          <line x1="450" y1="114" x2="450" y2="134" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+
+          <!-- 2-1 -->
+          <rect x="300" y="134" width="300" height="50" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+          <text x="450" y="156" text-anchor="middle" font-size="13" font-weight="700">2-1 伸缩杆缩回</text>
+          <text x="450" y="174" text-anchor="middle" font-size="11" fill="#9a3412">PA0=1 · 默认 3000ms · STM32 RETRACT</text>
+          <line x1="450" y1="184" x2="450" y2="204" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+
+          <!-- 2-2 -->
+          <rect x="300" y="204" width="300" height="50" rx="8" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+          <text x="450" y="226" text-anchor="middle" font-size="13" font-weight="700">2-2 继电器A 脉冲 →「继续」</text>
+          <text x="450" y="244" text-anchor="middle" font-size="11" fill="#065f46">PA2 · PULSE_A · 默认 200ms</text>
+          <line x1="450" y1="254" x2="450" y2="274" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+
+          <!-- 2-3 -->
+          <rect x="280" y="274" width="340" height="50" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+          <text x="450" y="296" text-anchor="middle" font-size="13" font-weight="700">2-3 PC 发送 Ctrl+P → 切割</text>
+          <text x="450" y="314" text-anchor="middle" font-size="11" fill="#5b21b6">Cutting Master 4 · 等待默认 6000ms</text>
+          <line x1="450" y1="324" x2="450" y2="344" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+
+          <!-- 3 -->
+          <rect x="300" y="344" width="300" height="50" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+          <text x="450" y="366" text-anchor="middle" font-size="13" font-weight="700">3 伸缩杆伸出</text>
+          <text x="450" y="384" text-anchor="middle" font-size="11" fill="#9a3412">PA1=1 · 默认 3000ms · STM32 EXTEND</text>
+          <line x1="450" y1="394" x2="450" y2="414" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+
+          <!-- 4 -->
+          <rect x="300" y="414" width="300" height="50" rx="8" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+          <text x="450" y="436" text-anchor="middle" font-size="13" font-weight="700">4 继电器B 脉冲 →「原点」</text>
+          <text x="450" y="454" text-anchor="middle" font-size="11" fill="#065f46">PA3 · PULSE_B · 默认 200ms</text>
+          <line x1="450" y1="464" x2="450" y2="484" stroke="#64748b" stroke-width="2" marker-end="url(#arr2)"/>
+
+          <!-- done -->
+          <rect x="340" y="484" width="220" height="36" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+          <text x="450" y="508" text-anchor="middle" font-size="13" font-weight="700">完成 · 取纸 · 下一轮手动开始</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- 引脚图 -->
+    <section id="view-pins" class="view">
+      <div class="canvas-wrap">
+        <svg viewBox="0 0 700 480" width="100%" style="min-width:560px">
+          <rect x="200" y="40" width="300" height="400" rx="16" fill="#0369a1" stroke="#0c4a6e" stroke-width="3"/>
+          <text x="350" y="75" text-anchor="middle" fill="#fff" font-size="18" font-weight="700">STM32F103C8T6</text>
+          <text x="350" y="98" text-anchor="middle" fill="#bae6fd" font-size="12">最小系统板 · 俯视图引脚</text>
+
+          <!-- 左侧引脚 -->
+          <g font-size="12">
+            <rect x="30" y="120" width="150" height="28" rx="6" fill="#ffedd5" stroke="#ea580c"/>
+            <text x="105" y="139" text-anchor="middle" fill="#9a3412">PA0 缩回 → 电机 IN1</text>
+            <line x1="180" y1="134" x2="200" y2="134" stroke="#ea580c" stroke-width="2"/>
+
+            <rect x="30" y="160" width="150" height="28" rx="6" fill="#ffedd5" stroke="#ea580c"/>
+            <text x="105" y="179" text-anchor="middle" fill="#9a3412">PA1 伸出 → 电机 IN2</text>
+            <line x1="180" y1="174" x2="200" y2="174" stroke="#ea580c" stroke-width="2"/>
+
+            <rect x="30" y="200" width="150" height="28" rx="6" fill="#d1fae5" stroke="#059669"/>
+            <text x="105" y="219" text-anchor="middle" fill="#065f46">PA2 → 继电器A 继续</text>
+            <line x1="180" y1="214" x2="200" y2="214" stroke="#059669" stroke-width="2"/>
+
+            <rect x="30" y="240" width="150" height="28" rx="6" fill="#d1fae5" stroke="#059669"/>
+            <text x="105" y="259" text-anchor="middle" fill="#065f46">PA3 → 继电器B 原点</text>
+            <line x1="180" y1="254" x2="200" y2="254" stroke="#059669" stroke-width="2"/>
+
+            <rect x="30" y="300" width="150" height="28" rx="6" fill="#dbeafe" stroke="#2563eb"/>
+            <text x="105" y="319" text-anchor="middle" fill="#1e40af">PA13 SWDIO</text>
+            <line x1="180" y1="314" x2="200" y2="314" stroke="#2563eb" stroke-width="2"/>
+
+            <rect x="30" y="340" width="150" height="28" rx="6" fill="#dbeafe" stroke="#2563eb"/>
+            <text x="105" y="359" text-anchor="middle" fill="#1e40af">PA14 SWCLK</text>
+            <line x1="180" y1="354" x2="200" y2="354" stroke="#2563eb" stroke-width="2"/>
+          </g>
+
+          <!-- 右侧引脚 -->
+          <g font-size="12">
+            <rect x="520" y="160" width="150" height="28" rx="6" fill="#dbeafe" stroke="#2563eb"/>
+            <text x="595" y="179" text-anchor="middle" fill="#1e40af">PA9 TX → TTL RX</text>
+            <line x1="500" y1="174" x2="520" y2="174" stroke="#2563eb" stroke-width="2"/>
+
+            <rect x="520" y="200" width="150" height="28" rx="6" fill="#dbeafe" stroke="#2563eb"/>
+            <text x="595" y="219" text-anchor="middle" fill="#1e40af">PA10 RX ← TTL TX</text>
+            <line x1="500" y1="214" x2="520" y2="214" stroke="#2563eb" stroke-width="2"/>
+
+            <rect x="520" y="280" width="150" height="28" rx="6" fill="#fee2e2" stroke="#dc2626"/>
+            <text x="595" y="299" text-anchor="middle" fill="#991b1b">GND 共地</text>
+            <line x1="500" y1="294" x2="520" y2="294" stroke="#dc2626" stroke-width="2"/>
+
+            <rect x="520" y="320" width="150" height="28" rx="6" fill="#fee2e2" stroke="#dc2626"/>
+            <text x="595" y="339" text-anchor="middle" fill="#991b1b">3.3V 供电</text>
+            <line x1="500" y1="334" x2="520" y2="334" stroke="#dc2626" stroke-width="2"/>
+          </g>
+
+          <text x="350" y="430" text-anchor="middle" fill="#bae6fd" font-size="11">左侧=输出/烧录 · 右侧=串口/电源</text>
+        </svg>
+        <table class="pin-table">
+          <tr><th>引脚</th><th>方向</th><th>连接</th><th>颜色</th></tr>
+          <tr><td>PA0</td><td>输出</td><td>电机驱动 IN1（缩回）</td><td style="color:#ea580c">橙</td></tr>
+          <tr><td>PA1</td><td>输出</td><td>电机驱动 IN2（伸出）</td><td style="color:#ea580c">橙</td></tr>
+          <tr><td>PA2</td><td>输出</td><td>继电器 A → 继续按钮</td><td style="color:#059669">绿</td></tr>
+          <tr><td>PA3</td><td>输出</td><td>继电器 B → 原点按钮</td><td style="color:#059669">绿</td></tr>
+          <tr><td>PA9/10</td><td>串口</td><td>USB-TTL 交叉连接</td><td style="color:#2563eb">蓝</td></tr>
+          <tr><td>PA13/14</td><td>SWD</td><td>ST-LINK 烧录</td><td style="color:#2563eb">蓝</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ST-LINK -->
+    <section id="view-stlink" class="view">
+      <div class="canvas-wrap">
+        <svg viewBox="0 0 640 280" width="100%">
+          <rect x="40" y="60" width="200" height="160" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+          <text x="140" y="95" text-anchor="middle" font-size="16" font-weight="700" fill="#1e40af">ST-LINK V2</text>
+          <text x="60" y="125" font-size="13" fill="#1d4ed8">SWDIO ────────►</text>
+          <text x="60" y="150" font-size="13" fill="#1d4ed8">SWCLK ────────►</text>
+          <text x="60" y="175" font-size="13" fill="#1d4ed8">3.3V  ──(可选)─►</text>
+          <text x="60" y="200" font-size="13" fill="#1d4ed8">GND   ────────►</text>
+
+          <rect x="400" y="60" width="200" height="160" rx="12" fill="#0369a1" stroke="#0c4a6e" stroke-width="2"/>
+          <text x="500" y="95" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">STM32 板</text>
+          <text x="420" y="125" font-size="13" fill="#bae6fd">PA13 (SWDIO)</text>
+          <text x="420" y="150" font-size="13" fill="#bae6fd">PA14 (SWCLK)</text>
+          <text x="420" y="175" font-size="13" fill="#bae6fd">3.3V</text>
+          <text x="420" y="200" font-size="13" fill="#bae6fd">GND</text>
+
+          <line x1="240" y1="125" x2="400" y2="125" stroke="#16a34a" stroke-width="3"/>
+          <line x1="240" y1="150" x2="400" y2="150" stroke="#2563eb" stroke-width="3"/>
+          <line x1="240" y1="175" x2="400" y2="175" stroke="#dc2626" stroke-width="2" stroke-dasharray="6,4"/>
+          <line x1="240" y1="200" x2="400" y2="200" stroke="#1f2937" stroke-width="3"/>
+        </svg>
+        <div class="detail-box">
+          <h3>ST-LINK 接线要点</h3>
+          <ul>
+            <li>线色建议：SWDIO 绿 · SWCLK 蓝 · GND 黑 · 3.3V 红（可选）</li>
+            <li>板子已有独立供电时，<span class="highlight">3.3V 可不接</span>，只接 SWDIO、SWCLK、GND</li>
+            <li>与 USB-TTL 可同时连接，互不影响</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- USB-TTL -->
+    <section id="view-ttl" class="view">
+      <div class="canvas-wrap">
+        <svg viewBox="0 0 640 300" width="100%">
+          <rect x="40" y="50" width="200" height="180" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+          <text x="140" y="85" text-anchor="middle" font-size="16" font-weight="700" fill="#1e40af">USB-TTL</text>
+          <text x="140" y="108" text-anchor="middle" font-size="11" fill="#1d4ed8">必须 3.3V 档位</text>
+          <text x="60" y="135" font-size="13" fill="#dc2626" font-weight="700">TX ──交叉──►</text>
+          <text x="60" y="165" font-size="13" fill="#dc2626" font-weight="700">RX ◄──交叉──</text>
+          <text x="60" y="195" font-size="13" fill="#1d4ed8">GND ────────►</text>
+          <text x="60" y="220" font-size="13" fill="#94a3b8">VCC  (勿接)</text>
+
+          <rect x="400" y="50" width="200" height="180" rx="12" fill="#0369a1" stroke="#0c4a6e" stroke-width="2"/>
+          <text x="500" y="85" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">STM32</text>
+          <text x="420" y="135" font-size="13" fill="#bae6fd">PA10 (RX)</text>
+          <text x="420" y="165" font-size="13" fill="#bae6fd">PA9  (TX)</text>
+          <text x="420" y="195" font-size="13" fill="#bae6fd">GND</text>
+
+          <line x1="240" y1="135" x2="400" y2="165" stroke="#dc2626" stroke-width="3"/>
+          <line x1="240" y1="165" x2="400" y2="135" stroke="#dc2626" stroke-width="3"/>
+          <line x1="240" y1="195" x2="400" y2="195" stroke="#1f2937" stroke-width="3"/>
+
+          <text x="320" y="260" text-anchor="middle" font-size="12" fill="#64748b">115200 · 8N1 · 电脑识别为 COM 口</text>
+        </svg>
+        <div class="detail-box">
+          <h3>交叉接线记忆法</h3>
+          <ul>
+            <li><span class="highlight">TTL 的 TX → MCU 的 RX (PA10)</span></li>
+            <li><span class="highlight">TTL 的 RX ← MCU 的 TX (PA9)</span></li>
+            <li>不要用 5V TTL 直连 STM32！VCC 不要接到 MCU</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 伸缩杆 -->
+    <section id="view-motor" class="view">
+      <div class="canvas-wrap">
+        <svg viewBox="0 0 720 400" width="100%">
+          <rect x="280" y="20" width="160" height="60" rx="10" fill="#0369a1" stroke="#0c4a6e" stroke-width="2"/>
+          <text x="360" y="48" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">STM32</text>
+          <text x="360" y="68" text-anchor="middle" fill="#bae6fd" font-size="11">PA0 / PA1</text>
+
+          <rect x="240" y="120" width="240" height="80" rx="10" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+          <text x="360" y="148" text-anchor="middle" fill="#9a3412" font-size="14" font-weight="700">双路继电器 / 电机驱动</text>
+          <text x="360" y="168" text-anchor="middle" fill="#c2410c" font-size="11">IN1←PA0 · IN2←PA1 · GND 共地</text>
+          <text x="360" y="186" text-anchor="middle" fill="#c2410c" font-size="11">互锁：不可 PA0+PA1 同时为 1</text>
+
+          <line x1="360" y1="80" x2="360" y2="120" stroke="#ea580c" stroke-width="2"/>
+          <line x1="320" y1="80" x2="300" y2="120" stroke="#ea580c" stroke-width="2"/>
+          <line x1="400" y1="80" x2="420" y2="120" stroke="#ea580c" stroke-width="2"/>
+          <text x="280" y="105" font-size="11" fill="#ea580c">PA0</text>
+          <text x="410" y="105" font-size="11" fill="#ea580c">PA1</text>
+
+          <rect x="260" y="240" width="200" height="60" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+          <text x="360" y="268" text-anchor="middle" font-size="14" font-weight="700" fill="#92400e">12V 伸缩杆</text>
+          <text x="360" y="286" text-anchor="middle" font-size="11" fill="#b45309">线1 / 线2</text>
+
+          <rect x="500" y="240" width="160" height="60" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+          <text x="580" y="268" text-anchor="middle" font-size="14" font-weight="700" fill="#991b1b">12V 电源</text>
+          <text x="580" y="286" text-anchor="middle" font-size="11" fill="#b91c1c">+ / -</text>
+
+          <line x1="360" y1="200" x2="360" y2="240" stroke="#64748b" stroke-width="2"/>
+          <line x1="460" y1="270" x2="500" y2="270" stroke="#dc2626" stroke-width="2"/>
+
+          <g font-size="12" fill="#334155">
+            <text x="80" y="150">PA0=1 PA1=0 → 缩回</text>
+            <text x="80" y="175">PA0=0 PA1=1 → 伸出</text>
+            <text x="80" y="200">PA0=0 PA1=0 → 停止</text>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <!-- 继电器 -->
+    <section id="view-relay" class="view">
+      <div class="canvas-wrap">
+        <svg viewBox="0 0 760 420" width="100%">
+          <!-- 继电器 A -->
+          <text x="190" y="30" text-anchor="middle" font-size="15" font-weight="700" fill="#065f46">继电器 A →「继续」</text>
+          <rect x="60" y="50" width="100" height="50" rx="8" fill="#0369a1" stroke="#0c4a6e"/>
+          <text x="110" y="80" text-anchor="middle" fill="#fff" font-size="12">PA2</text>
+          <line x1="160" y1="75" x2="220" y2="75" stroke="#059669" stroke-width="2"/>
+          <rect x="220" y="50" width="120" height="50" rx="8" fill="#d1fae5" stroke="#059669"/>
+          <text x="280" y="80" text-anchor="middle" font-size="12" fill="#065f46">继电器 IN</text>
+          <line x1="340" y1="75" x2="400" y2="75" stroke="#64748b" stroke-width="2"/>
+          <rect x="400" y="40" width="140" height="70" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+          <text x="470" y="65" text-anchor="middle" font-size="11" fill="#065f46">COM ─┬─ NO</text>
+          <text x="470" y="85" text-anchor="middle" font-size="10" fill="#047857">并联继续按钮</text>
+          <text x="470" y="100" text-anchor="middle" font-size="10" fill="#047857">短触 ~200ms</text>
+
+          <!-- 继电器 B -->
+          <text x="190" y="170" text-anchor="middle" font-size="15" font-weight="700" fill="#065f46">继电器 B →「原点」</text>
+          <rect x="60" y="190" width="100" height="50" rx="8" fill="#0369a1" stroke="#0c4a6e"/>
+          <text x="110" y="220" text-anchor="middle" fill="#fff" font-size="12">PA3</text>
+          <line x1="160" y1="215" x2="220" y2="215" stroke="#059669" stroke-width="2"/>
+          <rect x="220" y="190" width="120" height="50" rx="8" fill="#d1fae5" stroke="#059669"/>
+          <text x="280" y="220" text-anchor="middle" font-size="12" fill="#065f46">继电器 IN</text>
+          <line x1="340" y1="215" x2="400" y2="215" stroke="#64748b" stroke-width="2"/>
+          <rect x="400" y="180" width="140" height="70" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+          <text x="470" y="205" text-anchor="middle" font-size="11" fill="#065f46">COM ─┬─ NO</text>
+          <text x="470" y="225" text-anchor="middle" font-size="10" fill="#047857">并联原点按钮</text>
+
+          <!-- 并联示意 -->
+          <rect x="560" y="280" width="160" height="100" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+          <text x="640" y="310" text-anchor="middle" font-size="12" font-weight="700">原按钮接线</text>
+          <circle cx="600" cy="340" r="8" fill="none" stroke="#64748b" stroke-width="2"/>
+          <circle cx="680" cy="340" r="8" fill="none" stroke="#64748b" stroke-width="2"/>
+          <line x1="608" y1="340" x2="672" y2="340" stroke="#64748b" stroke-width="2"/>
+          <text x="640" y="365" text-anchor="middle" font-size="10" fill="#64748b">继电器 NO 与此并联</text>
+        </svg>
+        <div class="detail-box">
+          <h3>并联接线示意</h3>
+          <ul>
+            <li>找到机器「继续」按钮背后两根线 → 接到继电器 A 的 <span class="highlight">COM</span> 和 <span class="highlight">NO</span></li>
+            <li>「原点」按钮同样接到继电器 B 的 COM 和 NO</li>
+            <li>先用万用表确认按钮是干触点（按下通、松开断）</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 电源 -->
+    <section id="view-power" class="view">
+      <div class="canvas-wrap">
+        <svg viewBox="0 0 700 380" width="100%">
+          <rect x="280" y="20" width="140" height="50" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+          <text x="350" y="50" text-anchor="middle" font-size="14" font-weight="700" fill="#991b1b">12V 电源</text>
+
+          <line x1="300" y1="70" x2="180" y2="130" stroke="#dc2626" stroke-width="2"/>
+          <line x1="350" y1="70" x2="350" y2="130" stroke="#dc2626" stroke-width="2"/>
+          <line x1="400" y1="70" x2="520" y2="130" stroke="#dc2626" stroke-width="2"/>
+
+          <rect x="80" y="130" width="140" height="50" rx="8" fill="#ffedd5" stroke="#ea580c"/>
+          <text x="150" y="160" text-anchor="middle" font-size="12" fill="#9a3412">电机驱动</text>
+
+          <rect x="280" y="130" width="140" height="50" rx="8" fill="#fef3c7" stroke="#f59e0b"/>
+          <text x="350" y="160" text-anchor="middle" font-size="12" fill="#92400e">DC-DC 降压</text>
+
+          <rect x="480" y="130" width="140" height="50" rx="8" fill="#d1fae5" stroke="#059669"/>
+          <text x="550" y="160" text-anchor="middle" font-size="12" fill="#065f46">继电器模块</text>
+
+          <line x1="350" y1="180" x2="350" y2="240" stroke="#64748b" stroke-width="2"/>
+
+          <rect x="240" y="240" width="220" height="50" rx="8" fill="#0369a1" stroke="#0c4a6e" stroke-width="2"/>
+          <text x="350" y="270" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">STM32 · USB-TTL · ST-LINK</text>
+
+          <rect x="200" y="320" width="300" height="40" rx="8" fill="#1f2937" stroke="#374151" stroke-width="2"/>
+          <text x="350" y="346" text-anchor="middle" fill="#f8fafc" font-size="13" font-weight="700">★ 所有 GND 汇到一起（共地）★</text>
+        </svg>
+        <div class="detail-box">
+          <h3>电源规则</h3>
+          <ul>
+            <li>12V 只给电机和（如需）降压模块，<span class="highlight">不要</span>接 STM32 引脚</li>
+            <li>12V 电源的 <span class="highlight">负极 = 系统 GND</span></li>
+            <li>电机线尽量粗、短；与信号线分开走</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    document.querySelectorAll(".tab").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById("view-" + btn.dataset.view).classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>

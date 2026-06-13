@@ -23,3 +23,9 @@ npm start
 ## 固件
 
 Keil5 打开 `firmware/CutPPaper.uvprojx`，ST-LINK 烧录。
+
+## 接线图
+
+- **可视化接线图（推荐）**：双击打开 [`docs/wiring-diagram.html`](wiring-diagram.html)  
+  含思维导图总览、工艺流程、引脚图、ST-LINK / USB-TTL / 伸缩杆 / 继电器 / 电源等分页图。
+- **文字详细说明**：[`docs/wiring.md`](wiring.md)

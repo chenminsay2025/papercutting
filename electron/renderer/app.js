@@ -84,8 +84,10 @@ function renderTimeline(activePhase = "idle", donePhases = new Set()) {
 function updateControls() {
   const canRun = state.connected && !state.running;
   els.startBtn.disabled = !canRun;
-  els.connectBtn.disabled = state.connected;
-  els.disconnectBtn.disabled = !state.connected;
+  els.connectBtn.disabled = state.connected || state.running;
+  els.disconnectBtn.disabled = !state.connected || state.running;
+  els.saveConfigBtn.disabled = state.running;
+  els.simulationMode.disabled = state.running;
   document.querySelectorAll("[data-step]").forEach((btn) => {
     btn.disabled = !canRun;
   });

@@ -31,8 +31,15 @@ def focus_cutting_master(window_title_contains: str) -> str:
     if win32gui.IsIconic(hwnd):
         win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
     win32gui.SetForegroundWindow(hwnd)
-    time.sleep(0.1)
-    return title
+
+    deadline = time.monotonic() + 1.0
+    while time.monotonic() < deadline:
+        if win32gui.GetForegroundWindow() == hwnd:
+            time.sleep(0.05)
+            return title
+        time.sleep(0.05)
+
+    raise RuntimeError(f"无法将窗口置于前台: {title}")
 
 
 def send_hotkey(hotkey: str) -> None:

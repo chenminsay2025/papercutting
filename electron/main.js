@@ -131,14 +131,30 @@ function createWindow() {
 
 app.whenReady().then(createWindow);
 
-app.on("window-all-closed", () => {
+async function shutdownPythonBackend() {
+  if (!pythonProcess) {
+    return;
+  }
+
+  try {
+    await sendCommand({ cmd: "estop" });
+  } catch (_err) {
+    // ignore if backend already stopping
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 300));
   if (pythonProcess) {
     pythonProcess.kill();
     pythonProcess = null;
   }
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+}
+
+app.on("window-all-closed", () => {
+  shutdownPythonBackend().finally(() => {
+    if (process.platform !== "darwin") {
+      app.quit();
+    }
+  });
 });
 
 ipcMain.handle("backend-send", async (_event, message) => {

@@ -1,4 +1,5 @@
 #include "usart_serial.h"
+#include "board.h"
 #include <string.h>
 
 static char s_rx_line[SERIAL_RX_BUF_SIZE];
@@ -125,6 +126,14 @@ uint8_t Serial_ReadLine(char *line, uint16_t max_len)
 
 void USART1_IRQHandler(void)
 {
+	if (USART_GetFlagStatus(SERIAL_USART, USART_FLAG_ORE) != RESET ||
+	    USART_GetFlagStatus(SERIAL_USART, USART_FLAG_FE) != RESET ||
+	    USART_GetFlagStatus(SERIAL_USART, USART_FLAG_NE) != RESET)
+	{
+		(void)USART_ReceiveData(SERIAL_USART);
+		return;
+	}
+
 	if (USART_GetITStatus(SERIAL_USART, USART_IT_RXNE) != RESET)
 	{
 		char ch = (char)USART_ReceiveData(SERIAL_USART);

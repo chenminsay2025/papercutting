@@ -21,6 +21,8 @@ const els = {
   serialStatus: document.getElementById("serialStatus"),
   serialPanel: document.getElementById("serialPanel"),
   portSelect: document.getElementById("portSelect"),
+  baudrate: document.getElementById("baudrate"),
+  timeoutMs: document.getElementById("timeoutMs"),
   refreshPortsBtn: document.getElementById("refreshPortsBtn"),
   connectBtn: document.getElementById("connectBtn"),
   disconnectBtn: document.getElementById("disconnectBtn"),
@@ -31,7 +33,12 @@ const els = {
   cutWaitMs: document.getElementById("cutWaitMs"),
   relayPulseMs: document.getElementById("relayPulseMs"),
   beforeSendMs: document.getElementById("beforeSendMs"),
+  afterFocusMs: document.getElementById("afterFocusMs"),
+  afterHotkeyMs: document.getElementById("afterHotkeyMs"),
   windowKeyword: document.getElementById("windowKeyword"),
+  sendHotkey: document.getElementById("sendHotkey"),
+  testWindowBtn: document.getElementById("testWindowBtn"),
+  testHotkeyBtn: document.getElementById("testHotkeyBtn"),
   saveConfigBtn: document.getElementById("saveConfigBtn"),
   stepTimeline: document.getElementById("stepTimeline"),
   phaseLabel: document.getElementById("phaseLabel"),
@@ -55,12 +62,20 @@ function setBadge(el, className, text) {
   el.textContent = text;
 }
 
+function sendCutBudgetMs(timings) {
+  return (
+    (timings.before_send_keys || 0)
+    + (timings.after_focus_ms || 0)
+    + (timings.after_hotkey_ms || 0)
+  );
+}
+
 function renderTimeline(activePhase = "idle", donePhases = new Set()) {
   const timings = state.config?.timings_ms || {};
   els.stepTimeline.innerHTML = STEPS.map((step) => {
     let duration = timings[step.configKey] || 0;
     if (step.id === "2-3") {
-      duration = (timings.before_send_keys || 0) + (timings.cut_wait || 0);
+      duration = sendCutBudgetMs(timings) + (timings.cut_wait || 0);
       if (state.simulation && els.simulateCut.checked) {
         duration = timings.cut_wait || 0;
       }
@@ -100,12 +115,17 @@ function applyConfigToForm(config) {
   els.simulationMode.checked = state.simulation;
   els.simulateCut.checked = config.app?.simulate_cut !== false;
   els.portSelect.value = config.serial.port;
+  els.baudrate.value = config.serial.baudrate ?? 115200;
+  els.timeoutMs.value = config.serial.timeout_ms ?? 2000;
   els.retractMs.value = config.timings_ms.retract;
   els.extendMs.value = config.timings_ms.extend;
   els.cutWaitMs.value = config.timings_ms.cut_wait;
   els.relayPulseMs.value = config.timings_ms.relay_pulse;
   els.beforeSendMs.value = config.timings_ms.before_send_keys;
+  els.afterFocusMs.value = config.timings_ms.after_focus_ms ?? 100;
+  els.afterHotkeyMs.value = config.timings_ms.after_hotkey_ms ?? 200;
   els.windowKeyword.value = config.cutting_master.window_title_contains;
+  els.sendHotkey.value = config.cutting_master.send_hotkey ?? "ctrl+p";
   recalcTotalMs();
   updateModeBadge();
   renderTimeline();
@@ -119,11 +139,13 @@ function recalcTotalMs() {
     cut_wait: Number(els.cutWaitMs.value) || 0,
     relay_pulse: Number(els.relayPulseMs.value) || 0,
     before_send_keys: Number(els.beforeSendMs.value) || 0,
+    after_focus_ms: Number(els.afterFocusMs.value) || 0,
+    after_hotkey_ms: Number(els.afterHotkeyMs.value) || 0,
   };
   state.totalMs =
     t.retract + t.relay_pulse + t.cut_wait + t.extend + t.relay_pulse;
   if (!(state.simulation && els.simulateCut.checked)) {
-    state.totalMs += t.before_send_keys;
+    state.totalMs += sendCutBudgetMs(t);
   }
   els.cycleHint.textContent = `~${(state.totalMs / 1000).toFixed(1)}s`;
   renderTimeline(state.currentPhase);
@@ -133,6 +155,8 @@ function readConfigFromForm() {
   return {
     serial: {
       port: els.portSelect.value,
+      baudrate: Number(els.baudrate.value) || 115200,
+      timeout_ms: Number(els.timeoutMs.value) || 2000,
     },
     timings_ms: {
       retract: Number(els.retractMs.value),
@@ -140,10 +164,12 @@ function readConfigFromForm() {
       cut_wait: Number(els.cutWaitMs.value),
       relay_pulse: Number(els.relayPulseMs.value),
       before_send_keys: Number(els.beforeSendMs.value),
+      after_focus_ms: Number(els.afterFocusMs.value),
+      after_hotkey_ms: Number(els.afterHotkeyMs.value),
     },
     cutting_master: {
       window_title_contains: els.windowKeyword.value.trim(),
-      send_hotkey: "ctrl+p",
+      send_hotkey: els.sendHotkey.value.trim() || "ctrl+p",
     },
     app: {
       simulation_mode: els.simulationMode.checked,
@@ -183,6 +209,9 @@ async function sendCommand(message) {
 
 async function saveConfigSilently() {
   const response = await sendCommand({ cmd: "save_config", config: readConfigFromForm() });
+  if (response.event === "error") {
+    throw new Error(response.message || "保存设置失败");
+  }
   if (response.event === "config_saved") {
     applyConfigToForm(response.config);
   }
@@ -195,8 +224,10 @@ async function refreshPorts() {
   els.portSelect.innerHTML = "";
   response.ports.forEach((port) => {
     const option = document.createElement("option");
-    option.value = port;
-    option.textContent = port;
+    const portName = typeof port === "string" ? port : port.port;
+    const description = typeof port === "string" ? "" : port.description || "";
+    option.value = portName;
+    option.textContent = description ? `${portName} — ${description}` : portName;
     els.portSelect.appendChild(option);
   });
   const preferred = current || (state.simulation ? "SIM（模拟）" : state.config?.serial?.port);
@@ -236,6 +267,17 @@ function handleBackendEvent(payload) {
       break;
     case "config":
       applyConfigToForm(payload.config);
+      break;
+    case "cut_window_ok":
+      if (payload.sent) {
+        log("info", `已激活「${payload.title}」并发送 ${payload.hotkey}`);
+        restoreAppFocus();
+      } else {
+        log("info", `已找到并激活窗口「${payload.title}」（关键字: ${payload.keyword}）`);
+      }
+      break;
+    case "cut_hotkey_sent":
+      restoreAppFocus();
       break;
     case "config_saved":
       applyConfigToForm(payload.config);
@@ -332,6 +374,48 @@ els.saveConfigBtn.addEventListener("click", async () => {
   }
 });
 
+async function yieldAppFocus() {
+  if (window.cutppaper.yieldFocus) {
+    await window.cutppaper.yieldFocus();
+    await new Promise((resolve) => setTimeout(resolve, 80));
+  }
+}
+
+async function restoreAppFocus() {
+  if (window.cutppaper.restoreFocus) {
+    await window.cutppaper.restoreFocus();
+  }
+}
+
+els.testWindowBtn.addEventListener("click", async () => {
+  try {
+    await saveConfigSilently();
+    await yieldAppFocus();
+    await sendCommand({
+      cmd: "test_cut_window",
+      keyword: els.windowKeyword.value.trim(),
+      send_keys: false,
+    });
+  } catch (err) {
+    log("error", err.message);
+  }
+});
+
+els.testHotkeyBtn.addEventListener("click", async () => {
+  try {
+    await saveConfigSilently();
+    await yieldAppFocus();
+    await sendCommand({
+      cmd: "test_cut_window",
+      keyword: els.windowKeyword.value.trim(),
+      hotkey: els.sendHotkey.value.trim() || "ctrl+p",
+      send_keys: true,
+    });
+  } catch (err) {
+    log("error", err.message);
+  }
+});
+
 els.startBtn.addEventListener("click", async () => {
   try {
     await saveConfigSilently();
@@ -360,7 +444,7 @@ document.querySelectorAll("[data-step]").forEach((button) => {
   });
 });
 
-[els.retractMs, els.extendMs, els.cutWaitMs, els.relayPulseMs, els.beforeSendMs, els.simulateCut].forEach((el) => {
+[els.retractMs, els.extendMs, els.cutWaitMs, els.relayPulseMs, els.beforeSendMs, els.afterFocusMs, els.afterHotkeyMs, els.simulateCut].forEach((el) => {
   el.addEventListener("input", recalcTotalMs);
 });
 

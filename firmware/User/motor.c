@@ -1,6 +1,7 @@
 #include "motor.h"
 #include "board.h"
 
+/* BTS7960: LPWM/RPWM 方向控制，停止时双低；换向前先 STOP 80ms */
 static MotorState_t s_state = MOTOR_STATE_STOP;
 
 #define MOTOR_DIR_SWITCH_MS 80

@@ -65,11 +65,26 @@
               <label class="toggle-row"><input id="simulationMode" type="checkbox" checked /><span>模拟硬件</span></label>
               <label class="toggle-row"><input id="simulateCut" type="checkbox" checked /><span>跳过CM4</span></label>
             </div>
-            <div class="serial-row" id="serialPanel">
-              <select id="portSelect" title="串口"></select>
-              <button id="refreshPortsBtn" type="button" class="btn btn-secondary btn-xs">刷新</button>
-              <button id="connectBtn" type="button" class="btn btn-primary btn-xs">连接</button>
-              <button id="disconnectBtn" type="button" class="btn btn-secondary btn-xs">断</button>
+            <div class="serial-block" id="serialPanel">
+              <label class="serial-field serial-port">
+                串口
+                <select id="portSelect" title="串口"></select>
+              </label>
+              <div class="serial-actions">
+                <label class="serial-field">
+                  波特率
+                  <input id="baudrate" type="number" min="9600" step="100" title="波特率" />
+                </label>
+                <label class="serial-field">
+                  超时 (ms)
+                  <input id="timeoutMs" type="number" min="500" step="100" title="超时 ms" />
+                </label>
+                <div class="serial-btns">
+                  <button id="refreshPortsBtn" type="button" class="btn btn-secondary btn-xs">刷新</button>
+                  <button id="connectBtn" type="button" class="btn btn-primary btn-xs">连接</button>
+                  <button id="disconnectBtn" type="button" class="btn btn-secondary btn-xs">断开</button>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -80,8 +95,16 @@
               <label>伸出<input id="extendMs" type="number" min="0" step="100" /></label>
               <label>切割<input id="cutWaitMs" type="number" min="0" step="100" /></label>
               <label>脉冲<input id="relayPulseMs" type="number" min="50" step="10" /></label>
-              <label>发前<input id="beforeSendMs" type="number" min="0" step="50" /></label>
-              <label class="full">CM4<input id="windowKeyword" type="text" /></label>
+              <label class="full">窗口关键字<input id="windowKeyword" type="text" placeholder="标题包含此文字即可" title="切割软件窗口标题中的任意片段" /></label>
+              <label>发送热键<input id="sendHotkey" type="text" placeholder="ctrl+p" title="激活窗口后发送的快捷键" /></label>
+              <label class="full cut-timing-hint">切割热键时序（激活 → 获焦 → 按热键 → 回本项目）</label>
+              <label>焦点超时 (ms)<input id="beforeSendMs" type="number" min="0" step="100" title="① 激活目标窗口后，最多等待多久以获得焦点。不必等满，获焦即进入下一步；超时仍无焦点则报错。" /></label>
+              <label>获焦后延迟 (ms)<input id="afterFocusMs" type="number" min="0" step="50" title="② 已获得焦点后、按下热键前的固定等待。给切割软件反应时间。" /></label>
+              <label>热键后延迟 (ms)<input id="afterHotkeyMs" type="number" min="0" step="50" title="③ 热键发送完成后、切回本程序前的固定等待。给切割软件处理命令的时间。" /></label>
+              <div class="cut-test-row">
+                <button id="testWindowBtn" type="button" class="btn btn-secondary btn-xs">测试窗口</button>
+                <button id="testHotkeyBtn" type="button" class="btn btn-secondary btn-xs">测试热键</button>
+              </div>
             </div>
             <button id="saveConfigBtn" type="button" class="btn btn-secondary btn-xs full-width">保存</button>
           </details>

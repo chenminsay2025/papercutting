@@ -94,7 +94,7 @@ body {
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
   gap: var(--gap);
   align-items: start;
 }
@@ -250,11 +250,46 @@ body {
   margin-bottom: 6px;
 }
 
-.serial-row {
+.serial-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.serial-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--font-sm);
+  color: var(--muted);
+  min-width: 0;
+}
+
+.serial-port select {
+  width: 100%;
+}
+
+.serial-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px 6px;
+  align-items: end;
+}
+
+.serial-btns {
+  grid-column: 1 / -1;
+  display: flex;
   gap: 4px;
-  align-items: center;
+  flex-wrap: wrap;
+}
+
+.serial-actions input[type="number"] {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: var(--font-base);
+  border: 1px solid var(--border);
+  border-radius: 5px;
 }
 
 .field-grid {
@@ -276,6 +311,17 @@ body {
 }
 
 .field-grid .full { grid-column: 1 / -1; }
+
+.cut-timing-hint {
+  font-size: var(--font-xs);
+  color: var(--muted);
+  margin-top: 2px;
+}
+  display: flex;
+  gap: 6px;
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
 
 input:not([type="checkbox"]):not([type="radio"]),
 select {

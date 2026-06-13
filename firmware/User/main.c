@@ -4,12 +4,14 @@
 #include "relay.h"
 #include "usart_serial.h"
 #include "protocol.h"
+#include "led.h"
 
 int main(void)
 {
 	Board_Init();
 	Motor_Init();
 	Relay_Init();
+	Led_Init();
 	Serial_Init();
 	Protocol_Init();
 
@@ -20,6 +22,7 @@ int main(void)
 		Protocol_Poll();
 		Protocol_CheckCommTimeout();
 		Relay_Tick();
+		Led_Tick();
 		Board_FeedWatchdog();
 	}
 }

@@ -26,6 +26,7 @@ void Board_DelayMs(uint32_t ms)
 	uint32_t start = s_tick_ms;
 	while ((s_tick_ms - start) < ms)
 	{
+		Board_FeedWatchdog();
 	}
 }
 

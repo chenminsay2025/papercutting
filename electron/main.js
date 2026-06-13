@@ -161,6 +161,25 @@ ipcMain.handle("backend-send", async (_event, message) => {
   return sendCommand(message);
 });
 
+ipcMain.handle("yield-focus", async () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.blur();
+  }
+});
+
+ipcMain.handle("restore-focus", async () => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  mainWindow.show();
+  mainWindow.setAlwaysOnTop(true, "screen-saver");
+  mainWindow.focus();
+  mainWindow.setAlwaysOnTop(false);
+});
+
 ipcMain.handle("backend-ready", async () => {
   return pythonReady;
 });

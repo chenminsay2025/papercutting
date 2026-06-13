@@ -4,6 +4,7 @@ import atexit
 import json
 import sys
 import threading
+import time
 import traceback
 from typing import Any
 
@@ -22,10 +23,26 @@ class ControllerService:
         self._pending_client_refresh = False
         self.workflow = WorkflowRunner(self.emit, client_lock=self._client_lock)
         self._write_lock = threading.Lock()
+        self._heartbeat_stop = threading.Event()
         self._ensure_client()
+        self._start_heartbeat()
         atexit.register(self._shutdown)
 
+    def _start_heartbeat(self) -> None:
+        def loop() -> None:
+            while not self._heartbeat_stop.wait(1.5):
+                try:
+                    with self._client_lock:
+                        if self.client is None or not self.client.connected:
+                            continue
+                        self.client.ping()
+                except Exception:
+                    pass
+
+        threading.Thread(target=loop, name="serial-heartbeat", daemon=True).start()
+
     def _shutdown(self) -> None:
+        self._heartbeat_stop.set()
         try:
             with self._client_lock:
                 if self.client is not None and self.client.connected:
@@ -206,6 +223,41 @@ class ControllerService:
                 step = message.get("step")
                 self.workflow.test_step(step, self.config)
                 reply({"event": "test_done", "step": step})
+                return
+
+            if cmd == "test_cut_window":
+                from cutting_master import probe_cut_window, send_cut_job
+
+                cm = self.config.get("cutting_master", {})
+                keyword = str(message.get("keyword") or cm.get("window_title_contains", "")).strip()
+                hotkey = str(message.get("hotkey") or cm.get("send_hotkey", "")).strip()
+                send_keys = bool(message.get("send_keys", False))
+                if len(keyword) < 2:
+                    raise RuntimeError("窗口关键字至少需要 2 个字符")
+                if send_keys and not hotkey:
+                    raise RuntimeError("发送热键不能为空")
+
+                if send_keys:
+                    timings = self.config.get("timings_ms", {})
+                    title = send_cut_job(
+                        keyword,
+                        hotkey,
+                        int(timings.get("before_send_keys", 0)),
+                        int(timings.get("after_focus_ms", 0)),
+                        int(timings.get("after_hotkey_ms", 0)),
+                    )
+                else:
+                    title = probe_cut_window(keyword)
+
+                reply(
+                    {
+                        "event": "cut_window_ok",
+                        "title": title,
+                        "keyword": keyword,
+                        "hotkey": hotkey,
+                        "sent": send_keys,
+                    }
+                )
                 return
 
             if cmd == "serial_ping":

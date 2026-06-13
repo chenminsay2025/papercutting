@@ -15,8 +15,17 @@ class Stm32Client:
         self._ser: Optional[serial.Serial] = None
 
     @staticmethod
-    def list_ports() -> list[str]:
-        return [item.device for item in list_ports.comports()]
+    def list_ports() -> list[dict[str, str]]:
+        ports: list[dict[str, str]] = []
+        for item in list_ports.comports():
+            ports.append(
+                {
+                    "port": item.device,
+                    "description": item.description or "",
+                    "hwid": item.hwid or "",
+                }
+            )
+        return ports
 
     @property
     def connected(self) -> bool:
@@ -123,8 +132,10 @@ def wait_ms(duration_ms: int, cancel_event, on_tick: Optional[Callable[[int, int
             return True
 
         remaining = total - elapsed_ms
-        if remaining > 100:
-            time.sleep(0.05)
+        if remaining > 200:
+            time.sleep(0.1)
+        elif remaining > 50:
+            time.sleep(0.02)
         elif remaining > 20:
             time.sleep(0.01)
         else:

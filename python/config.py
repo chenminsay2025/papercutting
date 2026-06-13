@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -17,7 +18,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "extend": 3000,
         "cut_wait": 6000,
         "relay_pulse": 200,
-        "before_send_keys": 300,
+        "before_send_keys": 800,
+        "after_focus_ms": 100,
+        "after_hotkey_ms": 200,
     },
     "cutting_master": {
         "window_title_contains": "Cutting Master",
@@ -56,7 +59,7 @@ def validate_config(config: dict[str, Any]) -> list[str]:
         errors.append("串口超时 timeout_ms 必须是 100–30000 的整数")
 
     timings = config.get("timings_ms", {})
-    for key in ("retract", "extend", "cut_wait", "before_send_keys"):
+    for key in ("retract", "extend", "cut_wait", "before_send_keys", "after_focus_ms", "after_hotkey_ms"):
         value = timings.get(key)
         if not isinstance(value, int) or not (0 <= value <= MAX_TIMING_MS):
             errors.append(f"时序 {key} 必须是 0–{MAX_TIMING_MS} 的整数")
@@ -110,10 +113,31 @@ def load_config() -> dict[str, Any]:
 def save_config(config: dict[str, Any]) -> None:
     path = config_path()
     tmp_path = path.with_suffix(".json.tmp")
+    payload = json.dumps(config, indent=2, ensure_ascii=False) + "\n"
     with tmp_path.open("w", encoding="utf-8") as fp:
-        json.dump(config, fp, indent=2, ensure_ascii=False)
-        fp.write("\n")
-    os.replace(tmp_path, path)
+        fp.write(payload)
+
+    last_err: OSError | None = None
+    for attempt in range(8):
+        try:
+            os.replace(tmp_path, path)
+            return
+        except OSError as err:
+            last_err = err
+            time.sleep(0.05 * (attempt + 1))
+
+    try:
+        with path.open("w", encoding="utf-8") as fp:
+            fp.write(payload)
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
+        return
+    except OSError:
+        if last_err is not None:
+            raise last_err
+        raise
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> None:

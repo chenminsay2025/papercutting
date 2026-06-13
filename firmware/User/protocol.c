@@ -9,6 +9,7 @@
 
 #define PULSE_MS_MAX 5000
 #define COMM_TIMEOUT_MS 70000
+#define COMM_ACTIVE_MS 3000
 
 static char s_cmd_line[SERIAL_RX_BUF_SIZE];
 static uint32_t s_last_comm_tick = 0;
@@ -181,4 +182,15 @@ void Protocol_CheckCommTimeout(void)
 		Relay_AllOff();
 		s_comm_timed_out = 1;
 	}
+}
+
+uint8_t Protocol_IsCommActive(void)
+{
+	uint32_t now = Board_GetTickMs();
+
+	if (s_comm_timed_out)
+	{
+		return 0;
+	}
+	return (now - s_last_comm_tick) < COMM_ACTIVE_MS;
 }

@@ -17,8 +17,13 @@ class MockStm32Client:
         self._open = False
 
     @staticmethod
-    def list_ports() -> list[str]:
-        return ["SIM（模拟）", "COM3", "COM4", "COM5"]
+    def list_ports() -> list[dict[str, str]]:
+        return [
+            {"port": "SIM（模拟）", "description": "无需硬件", "hwid": ""},
+            {"port": "COM3", "description": "模拟端口", "hwid": ""},
+            {"port": "COM4", "description": "模拟端口", "hwid": ""},
+            {"port": "COM5", "description": "模拟端口", "hwid": ""},
+        ]
 
     @property
     def connected(self) -> bool:

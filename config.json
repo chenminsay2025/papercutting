@@ -1,6 +1,6 @@
 {
   "serial": {
-    "port": "SIM（模拟）",
+    "port": "COM12",
     "baudrate": 115200,
     "timeout_ms": 2000
   },
@@ -9,14 +9,16 @@
     "extend": 3000,
     "cut_wait": 6000,
     "relay_pulse": 200,
-    "before_send_keys": 300
+    "before_send_keys": 200,
+    "after_focus_ms": 500,
+    "after_hotkey_ms": 1000
   },
   "cutting_master": {
-    "window_title_contains": "Cutting Master",
-    "send_hotkey": "ctrl+p"
+    "window_title_contains": "记事本",
+    "send_hotkey": "ctrl+a"
   },
   "app": {
-    "simulation_mode": true,
-    "simulate_cut": true
+    "simulation_mode": false,
+    "simulate_cut": false
   }
 }

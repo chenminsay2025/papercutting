@@ -9,6 +9,24 @@ from cutting_master import send_cut_job
 from serial_stm32 import Stm32Client, wait_ms
 
 
+def _send_cut_budget_ms(timings: dict[str, Any]) -> int:
+    return (
+        int(timings.get("before_send_keys", 0))
+        + int(timings.get("after_focus_ms", 0))
+        + int(timings.get("after_hotkey_ms", 0))
+    )
+
+
+def _invoke_send_cut_job(cm: dict[str, Any], timings: dict[str, Any]) -> str:
+    return send_cut_job(
+        cm["window_title_contains"],
+        cm["send_hotkey"],
+        int(timings.get("before_send_keys", 0)),
+        int(timings.get("after_focus_ms", 0)),
+        int(timings.get("after_hotkey_ms", 0)),
+    )
+
+
 class Phase(str, Enum):
     IDLE = "idle"
     RETRACT = "2-1_retract"
@@ -128,12 +146,9 @@ class WorkflowRunner:
             if self._simulation and self._simulate_cut:
                 self._emit_log("info", "[模拟] 跳过 Cutting Master Ctrl+P")
             else:
-                title = send_cut_job(
-                    cm["window_title_contains"],
-                    cm["send_hotkey"],
-                    timings["before_send_keys"],
-                )
+                title = _invoke_send_cut_job(cm, timings)
                 self._emit_log("info", f"已向窗口发送 {cm['send_hotkey']}: {title}")
+                self._emit({"event": "cut_hotkey_sent", "title": title, "hotkey": cm["send_hotkey"]})
         else:
             raise ValueError(f"未知测试步骤: {step}")
 
@@ -143,13 +158,13 @@ class WorkflowRunner:
         total_ms = (
             timings["retract"]
             + timings["relay_pulse"]
-            + timings["before_send_keys"]
+            + _send_cut_budget_ms(timings)
             + timings["cut_wait"]
             + timings["extend"]
             + timings["relay_pulse"]
         )
         if self._simulation and self._simulate_cut:
-            total_ms -= timings["before_send_keys"]
+            total_ms -= _send_cut_budget_ms(timings)
         cycle_start = time.monotonic()
 
         try:
@@ -201,12 +216,9 @@ class WorkflowRunner:
         if self._simulation and self._simulate_cut:
             self._emit_log("info", "[模拟] 跳过 Cutting Master Ctrl+P")
         else:
-            title = send_cut_job(
-                cm["window_title_contains"],
-                cm["send_hotkey"],
-                timings["before_send_keys"],
-            )
+            title = _invoke_send_cut_job(cm, timings)
             self._emit_log("info", f"已发送 {cm['send_hotkey']} -> {title}")
+            self._emit({"event": "cut_hotkey_sent", "title": title, "hotkey": cm["send_hotkey"]})
         elapsed = int((time.monotonic() - cycle_start) * 1000)
         self._emit_progress(Phase.SEND_CUT, elapsed, total_ms, "切割任务已发送")
 
@@ -250,7 +262,8 @@ class WorkflowRunner:
                 "message": message,
             }
         )
-        self._emit_log("info", message)
+        level = "warn" if phase == Phase.ABORTED else "info"
+        self._emit_log(level, message)
 
     def _emit_progress(self, phase: Phase, elapsed_ms: int, total_ms: int, message: str) -> None:
         self._emit(

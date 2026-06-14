@@ -318,18 +318,18 @@
           <!-- 伸缩杆 PA0 PA1 -->
           <line x1="380" y1="330" x2="160" y2="420" stroke="#ea580c" stroke-width="2" marker-end="url(#arrow)"/>
           <rect x="40" y="390" width="200" height="80" rx="10" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
-          <text x="140" y="418" text-anchor="middle" fill="#9a3412" font-size="13" font-weight="700">BTS7960 + 伸缩杆</text>
-          <text x="140" y="438" text-anchor="middle" fill="#c2410c" font-size="11">PA0→LPWM 缩回 · PA1→RPWM 伸出</text>
-          <text x="140" y="454" text-anchor="middle" fill="#c2410c" font-size="11">B+←24V · B-→GND · M+/M-→电机</text>
+          <text x="140" y="418" text-anchor="middle" fill="#9a3412" font-size="13" font-weight="700">四路继电器 K1/K2 电机</text>
+          <text x="140" y="438" text-anchor="middle" fill="#c2410c" font-size="11">PA0→IN1 缩回 · PA1→IN2 伸出</text>
+          <text x="140" y="454" text-anchor="middle" fill="#c2410c" font-size="11">NO1+NC1→正 · NO2→负 · NC2 悬空</text>
 
           <!-- 四路继电器 PA2 PA3 -->
           <line x1="580" y1="330" x2="800" y2="420" stroke="#059669" stroke-width="2" marker-end="url(#arrow)"/>
           <rect x="680" y="390" width="240" height="96" rx="10" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
           <text x="800" y="414" text-anchor="middle" fill="#065f46" font-size="13" font-weight="700">四路继电器 U4</text>
-          <text x="800" y="434" text-anchor="middle" fill="#047857" font-size="11">PA2→IN1 · COM1/NO1→「继续」</text>
-          <text x="800" y="450" text-anchor="middle" fill="#047857" font-size="11">PA3→IN2 · COM2/NO2→「原点」</text>
-          <text x="800" y="466" text-anchor="middle" fill="#047857" font-size="11">DC+/DC- 供电 · S1/S2 跳线高电平触发</text>
-          <text x="800" y="480" text-anchor="middle" fill="#64748b" font-size="10">IN3/IN4 预留 · NC 不接</text>
+          <text x="800" y="434" text-anchor="middle" fill="#047857" font-size="11">IN1←PA0(K1) · IN2←PA1(K2) 电机换向</text>
+          <text x="800" y="450" text-anchor="middle" fill="#047857" font-size="11">IN3←PA2(K3) 继续 · IN4←PA3(K4) 原点</text>
+          <text x="800" y="466" text-anchor="middle" fill="#047857" font-size="11">DC+←12V · DC-←GND · S1~S4 跳线插 H</text>
+          <text x="800" y="482" text-anchor="middle" fill="#64748b" font-size="10">COM/NO/NC ×4 · 按钮 NC3/NC4 不接</text>
 
           <!-- 底部提示 -->
           <text x="480" y="580" text-anchor="middle" fill="#64748b" font-size="12">紫色=电脑 · 蓝色=通信 · 橙色=伸缩杆 · 绿色=继电器 · 红色=电源</text>
@@ -471,17 +471,19 @@
               <path d="M1080,200 L1080,668" stroke="#374151"/>
             </g>
 
-            <!-- 电机：最左通道 x=30 -->
+            <!-- 电机：PA0/PA1 → 继电器 IN1/IN2，触点 → M1 -->
             <g data-sch-layer="wire-motor">
-              <path d="M480,255 L30,255 L30,540 L70,540" stroke="#ea580c"/>
-              <path d="M480,275 L40,275 L40,556 L70,556" stroke="#ea580c"/>
-              <path d="M180,548 L210,548" stroke="#ea580c"/>
+              <path d="M480,255 L360,255 L360,305 L820,305" stroke="#ea580c"/>
+              <path d="M480,275 L350,275 L350,325 L820,325" stroke="#ea580c"/>
+              <path d="M990,315 L1040,315 L1040,548 L200,548" stroke="#ea580c"/>
+              <path d="M115,48 L115,290 L990,290" stroke="#c41e3a"/>
+              <path d="M230,668 L230,335 L990,335" stroke="#374151"/>
             </g>
 
-            <!-- 继电器：中左通道 x=360 -->
+            <!-- 继电器 IN3/IN4 → 按钮 -->
             <g data-sch-layer="wire-relay">
-              <path d="M480,295 L360,295 L360,325 L820,325" stroke="#059669"/>
-              <path d="M480,315 L350,315 L350,345 L820,345" stroke="#059669"/>
+              <path d="M480,295 L360,295 L360,345 L820,345" stroke="#059669"/>
+              <path d="M480,315 L350,315 L350,365 L820,365" stroke="#059669"/>
             </g>
             <g data-sch-layer="wire-pwr33 wire-relay">
               <path d="M820,285 L820,88" stroke="#e67e22"/>
@@ -543,15 +545,16 @@
               <text x="550" y="266" text-anchor="middle" class="sch-val">STM32F103C8T6</text>
             </g>
             <g data-sch-layer="part-u2">
-              <rect x="70" y="520" width="110" height="58" rx="3"/>
-              <text x="125" y="542" text-anchor="middle" class="sch-ref">U2</text>
-              <text x="125" y="558" text-anchor="middle" class="sch-val">BTS7960</text>
+              <use href="#sym-motor" x="170" y="548"/>
+              <text x="170" y="572" text-anchor="middle" class="sch-ref">M1</text>
+              <text x="170" y="588" text-anchor="middle" class="sch-val">24V 伸缩杆</text>
             </g>
             <g data-sch-layer="part-relay">
-              <rect x="820" y="270" width="170" height="140" rx="4" stroke-width="1.3"/>
+              <rect x="820" y="270" width="170" height="160" rx="4" stroke-width="1.3"/>
               <text x="905" y="294" text-anchor="middle" class="sch-ref">U4</text>
               <text x="905" y="312" text-anchor="middle" class="sch-val">四路继电器</text>
-              <text x="905" y="330" text-anchor="middle" class="sch-note">S1 S2 S3 S4</text>
+              <text x="905" y="330" text-anchor="middle" class="sch-note">IN1 IN2 IN3 IN4</text>
+              <text x="905" y="348" text-anchor="middle" class="sch-note">S1 S2 S3 S4</text>
             </g>
             <g data-sch-layer="part-led">
               <circle cx="900" cy="560" r="9" fill="#fff" stroke="#f59e0b"/>
@@ -582,30 +585,25 @@
               <text x="1100" y="130" class="sch-note" fill="#c41e3a">×VCC</text>
               <text x="780" y="160" class="sch-net">交叉</text>
             </g>
-            <g data-sch-layer="wire-motor part-u1 part-u2">
-              <text x="430" y="259" text-anchor="end">PA0</text>
-              <text x="430" y="279" text-anchor="end">PA1</text>
-              <text x="8" y="544">LPWM</text>
-              <text x="8" y="560">RPWM</text>
-              <text x="125" y="510" class="sch-net" fill="#c41e3a">B+ +24V</text>
-              <text x="125" y="524" class="sch-net" fill="#374151">B- →GND</text>
-              <text x="200" y="510" class="sch-note">M+/M-→电机</text>
-              <use href="#sym-motor" x="230" y="548"/>
-              <text x="230" y="572" text-anchor="middle" class="sch-ref">M1</text>
+            <g data-sch-layer="wire-motor part-u1 part-u2 part-relay">
+              <text x="430" y="259" text-anchor="end">PA0→IN1</text>
+              <text x="430" y="279" text-anchor="end">PA1→IN2</text>
+              <text x="810" y="302" text-anchor="end">K1</text>
+              <text x="810" y="322" text-anchor="end">K2</text>
+              <text x="1000" y="288">COM1←+24V</text>
+              <text x="1000" y="304">NO1/NC1→+</text>
+              <text x="1000" y="332">NO2→−</text>
+              <text x="1000" y="348" fill="#94a3b8">NC2 不接</text>
+              <text x="170" y="510" class="sch-note">停止时断电</text>
             </g>
             <g data-sch-layer="wire-relay part-relay part-u1">
-              <text x="430" y="299" text-anchor="end">PA2</text>
-              <text x="430" y="319" text-anchor="end">PA3</text>
+              <text x="430" y="299" text-anchor="end">PA2→IN3</text>
+              <text x="430" y="319" text-anchor="end">PA3→IN4</text>
               <text x="800" y="289" text-anchor="end">DC+</text>
               <text x="800" y="309" text-anchor="end">DC-</text>
-              <text x="800" y="329" text-anchor="end">IN1</text>
-              <text x="800" y="349" text-anchor="end">IN2</text>
-              <text x="800" y="369" text-anchor="end" fill="#94a3b8">IN3/4</text>
-              <text x="1000" y="329">COM1</text>
-              <text x="1000" y="345">NO1</text>
-              <text x="1000" y="369">COM2</text>
-              <text x="1000" y="385">NO2</text>
-              <text x="905" y="400" text-anchor="middle" class="sch-note">S1/S2 插上=高电平触发</text>
+              <text x="1000" y="369">COM3/NO3</text>
+              <text x="1000" y="385">COM4/NO4</text>
+              <text x="905" y="420" text-anchor="middle" class="sch-note">S1~S4 插上=高电平触发</text>
             </g>
             <g data-sch-layer="wire-stlink part-u1">
               <text x="430" y="359" text-anchor="end">PA13</text>
@@ -673,38 +671,35 @@
           <tr><td>6</td><td>ST-LINK GND</td><td>STM32 GND</td><td style="color:#1f2937">黑</td><td>必须共地</td></tr>
           <tr><td>7</td><td>ST-LINK 3.3V</td><td>STM32 3.3V</td><td style="color:#dc2626">红</td><td>可选，板子已有供电可不接</td></tr>
           <tr><td>8</td><td>DC-DC 输出 3.3V</td><td>STM32 3.3V</td><td style="color:#dc2626">红</td><td>禁止 24V 直连 MCU 引脚</td></tr>
-          <tr><td>9</td><td>STM32 PA0</td><td>BTS7960 LPWM</td><td style="color:#ea580c">橙</td><td>高=缩回；与 PA1 互锁，停止双低</td></tr>
-          <tr><td>10</td><td>STM32 PA1</td><td>BTS7960 RPWM</td><td style="color:#ea580c">橙</td><td>高=伸出；换向前固件先 STOP 80ms</td></tr>
-          <tr><td>11</td><td>5V</td><td>BTS7960 VCC</td><td style="color:#e67e22">橙</td><td>逻辑电源 5V；与 STM32 共 GND</td></tr>
-          <tr><td>12</td><td>5V</td><td>R_EN、L_EN</td><td style="color:#e67e22">橙</td><td>两使能脚接 5V 常高（或跳线帽接 VCC）</td></tr>
-          <tr><td>13</td><td>24V+</td><td>BTS7960 B+</td><td style="color:#dc2626">红</td><td>电机主电源正极，线径宜粗</td></tr>
-          <tr><td>14</td><td>24V- / GND</td><td>BTS7960 B-</td><td style="color:#1f2937">黑</td><td>接电源负极，与系统 GND 共地</td></tr>
-          <tr><td>15</td><td>BTS7960 M+ / M-</td><td>伸缩杆电机两根线</td><td style="color:#ea580c">橙</td><td>方向反了可对调 M+/M-</td></tr>
-          <tr><td>16</td><td>R_IS、L_IS</td><td>—</td><td style="color:#94a3b8">—</td><td>电流检测输出，本方案不接</td></tr>
-          <tr><td>17</td><td>STM32 PA4</td><td>D1 缩回 LED（经 330Ω）</td><td style="color:#f59e0b">琥珀</td><td>缩回时亮</td></tr>
-          <tr><td>18</td><td>STM32 PA5</td><td>D2 伸出 LED（经 330Ω）</td><td style="color:#22c55e">绿</td><td>伸出时亮</td></tr>
-          <tr><td>19</td><td>STM32 PA6</td><td>D3 串口 LED（经 330Ω）</td><td style="color:#2563eb">蓝</td><td>未连接快闪；已连接呼吸慢闪</td></tr>
-          <tr><td>20</td><td>四路继电器 DC+</td><td>5V 电源正极</td><td style="color:#dc2626">红</td><td>线圈/光耦供电；勿接 24V 到 STM32</td></tr>
-          <tr><td>21</td><td>四路继电器 DC-</td><td>系统 GND</td><td style="color:#1f2937">黑</td><td>与 STM32、TTL、ST-LINK 共地</td></tr>
-          <tr><td>22</td><td>跳线 S1、S2</td><td>插上跳线帽</td><td style="color:#64748b">—</td><td>高电平触发；S3/S4 对应 IN3/IN4 未用可保持默认</td></tr>
-          <tr><td>23</td><td>STM32 PA2</td><td>继电器 IN1</td><td style="color:#059669">绿</td><td>通道1 →「继续」；默认脉冲 200ms</td></tr>
-          <tr><td>24</td><td>COM1 + NO1</td><td>「继续」按钮两端</td><td style="color:#64748b">灰</td><td>并联原按钮；NC1 不接</td></tr>
-          <tr><td>25</td><td>STM32 PA3</td><td>继电器 IN2</td><td style="color:#059669">绿</td><td>通道2 →「原点」；默认脉冲 200ms</td></tr>
-          <tr><td>26</td><td>COM2 + NO2</td><td>「原点」按钮两端</td><td style="color:#64748b">灰</td><td>并联原按钮；NC2 不接</td></tr>
-          <tr><td>27</td><td>IN3 / IN4</td><td>—</td><td style="color:#94a3b8">—</td><td>预留；CH3/CH4 触点可不接</td></tr>
-          <tr><td>28</td><td>24V 电源 GND</td><td>共地总线</td><td style="color:#1f2937">黑</td><td>所有模块 GND 汇到一点</td></tr>
+          <tr><td>9</td><td>STM32 PA0</td><td>继电器 IN1 (K1)</td><td style="color:#ea580c">橙</td><td>缩回时与 PA1 同时吸合</td></tr>
+          <tr><td>10</td><td>STM32 PA1</td><td>继电器 IN2 (K2)</td><td style="color:#ea580c">橙</td><td>伸出时单独吸合；换向前 STOP 80ms</td></tr>
+          <tr><td>11</td><td>24V+</td><td>COM1 (K1)</td><td style="color:#dc2626">红</td><td>电机电源正极</td></tr>
+          <tr><td>12</td><td>GND</td><td>COM2 (K2)</td><td style="color:#1f2937">黑</td><td>电机电源负极</td></tr>
+          <tr><td>13</td><td>NO1 + NC1</td><td>电机正极 (+)</td><td style="color:#ea580c">橙</td><td>并到同一接线点</td></tr>
+          <tr><td>14</td><td>NO2</td><td>电机负极 (−)</td><td style="color:#ea580c">橙</td><td>NC2 悬空不接</td></tr>
+          <tr><td>15</td><td>STM32 PA4</td><td>D1 缩回 LED（经 330Ω）</td><td style="color:#f59e0b">琥珀</td><td>缩回时亮</td></tr>
+          <tr><td>16</td><td>STM32 PA5</td><td>D2 伸出 LED（经 330Ω）</td><td style="color:#22c55e">绿</td><td>伸出时亮</td></tr>
+          <tr><td>17</td><td>STM32 PA6</td><td>D3 串口 LED（经 330Ω）</td><td style="color:#2563eb">蓝</td><td>未连接快闪；已连接呼吸慢闪</td></tr>
+          <tr><td>18</td><td>四路继电器 DC+</td><td>12V 电源正极</td><td style="color:#dc2626">红</td><td>12V 光耦模块；5V 模块接 5V；勿接 24V</td></tr>
+          <tr><td>19</td><td>四路继电器 DC-</td><td>系统 GND</td><td style="color:#1f2937">黑</td><td>与 STM32、TTL、ST-LINK 共地</td></tr>
+          <tr><td>20</td><td>跳线 S1~S4</td><td>插上跳线帽</td><td style="color:#64748b">—</td><td>高电平触发 IN1~IN4</td></tr>
+          <tr><td>21</td><td>STM32 PA2</td><td>继电器 IN3 (K3)</td><td style="color:#059669">绿</td><td>脉冲 →「继续」</td></tr>
+          <tr><td>22</td><td>COM3 + NO3</td><td>「继续」按钮</td><td style="color:#64748b">灰</td><td>并联；NC3 不接</td></tr>
+          <tr><td>23</td><td>STM32 PA3</td><td>继电器 IN4 (K4)</td><td style="color:#059669">绿</td><td>脉冲 →「原点」</td></tr>
+          <tr><td>24</td><td>COM4 + NO4</td><td>「原点」按钮</td><td style="color:#64748b">灰</td><td>并联；NC4 不接</td></tr>
+          <tr><td>25</td><td>24V 电源 GND</td><td>共地总线</td><td style="color:#1f2937">黑</td><td>所有模块 GND 汇到一点</td></tr>
         </table>
 
         <div class="detail-box">
           <h3>接线检查清单（上电前必查）</h3>
           <ul>
-            <li><span class="highlight">共地</span>：24V 负极、STM32、USB-TTL、ST-LINK、电机驱动、继电器模块 GND 全部相连</li>
-            <li><span class="highlight">电压</span>：STM32 仅 3.3V 供电；USB-TTL 拨到 3.3V；禁止 5V TTL 或 24V 接 MCU 引脚</li>
-            <li><span class="highlight">串口</span>：TX/RX 交叉连接（TTL TX→PA10，TTL RX←PA9），波特率 115200</li>
-            <li><span class="highlight">电机 U2</span>：LPWM←PA0、RPWM←PA1；R_EN/L_EN→5V；VCC→5V；B+→24V、B-→GND；M+/M-→伸缩杆；R_IS/L_IS 不接</li>
-            <li><span class="highlight">LED</span>：PA4 缩回、PA5 伸出、PA6 串口（未连快闪/已连呼吸）；各串 330Ω 到 GND</li>
-            <li><span class="highlight">继电器 U4</span>：DC+ 接 5V、DC- 接 GND；<span class="highlight">S1/S2 跳线插上</span>（高电平触发）；PA2→IN1、PA3→IN2</li>
-            <li><span class="highlight">触点</span>：COM1/NO1 并联「继续」、COM2/NO2 并联「原点」；NC 脚不接；先确认按钮为干触点</li>
+            <li><span class="highlight">共地</span>：24V 负极、STM32、USB-TTL、ST-LINK、四路继电器 GND 全部相连</li>
+            <li><span class="highlight">电压</span>：STM32 仅 3.3V；USB-TTL 拨 3.3V；24V 只接 COM1/COM2 电机触点</li>
+            <li><span class="highlight">串口</span>：TX/RX 交叉（TTL TX→PA10，TTL RX←PA9），115200</li>
+            <li><span class="highlight">电机 K1/K2</span>：COM1←24V+、COM2←GND；NO1+NC1→电机+、NO2→电机−；NC2 不接；停止时断电</li>
+            <li><span class="highlight">LED</span>：PA4 缩回、PA5 伸出、PA6 串口；各串 330Ω 到 GND</li>
+            <li><span class="highlight">按钮 K3/K4</span>：PA2→IN3、PA3→IN4；COM3/NO3 继续、COM4/NO4 原点；NC3/NC4 不接</li>
+            <li><span class="highlight">继电器 U4</span>：DC+→12V、DC-→GND；S1~S4 跳线插 H（光耦模块可能无声）</li>
             <li><span class="highlight">走线</span>：24V 电机线与信号线分开；电机线尽量粗、短，减少压降与干扰</li>
             <li><span class="highlight">软件</span>：Cutting Master 4 由 PC 软件 Ctrl+P 触发，无需额外硬件连线</li>
           </ul>
@@ -779,19 +774,19 @@
           <!-- 左侧引脚 -->
           <g font-size="12">
             <rect x="30" y="120" width="150" height="28" rx="6" fill="#ffedd5" stroke="#ea580c"/>
-            <text x="105" y="139" text-anchor="middle" fill="#9a3412">PA0 → BTS7960 LPWM</text>
+            <text x="105" y="139" text-anchor="middle" fill="#9a3412">PA0 → IN1 (K1 缩回)</text>
             <line x1="180" y1="134" x2="200" y2="134" stroke="#ea580c" stroke-width="2"/>
 
             <rect x="30" y="160" width="150" height="28" rx="6" fill="#ffedd5" stroke="#ea580c"/>
-            <text x="105" y="179" text-anchor="middle" fill="#9a3412">PA1 → BTS7960 RPWM</text>
+            <text x="105" y="179" text-anchor="middle" fill="#9a3412">PA1 → IN2 (K2 伸出)</text>
             <line x1="180" y1="174" x2="200" y2="174" stroke="#ea580c" stroke-width="2"/>
 
             <rect x="30" y="200" width="150" height="28" rx="6" fill="#d1fae5" stroke="#059669"/>
-            <text x="105" y="219" text-anchor="middle" fill="#065f46">PA2 → IN1 继续</text>
+            <text x="105" y="219" text-anchor="middle" fill="#065f46">PA2 → IN3 (K3 继续)</text>
             <line x1="180" y1="214" x2="200" y2="214" stroke="#059669" stroke-width="2"/>
 
             <rect x="30" y="240" width="150" height="28" rx="6" fill="#d1fae5" stroke="#059669"/>
-            <text x="105" y="259" text-anchor="middle" fill="#065f46">PA3 → IN2 原点</text>
+            <text x="105" y="259" text-anchor="middle" fill="#065f46">PA3 → IN4 (K4 原点)</text>
             <line x1="180" y1="254" x2="200" y2="254" stroke="#059669" stroke-width="2"/>
 
             <rect x="30" y="300" width="150" height="28" rx="6" fill="#dbeafe" stroke="#2563eb"/>
@@ -826,13 +821,13 @@
         </svg>
         <table class="pin-table">
           <tr><th>引脚</th><th>方向</th><th>连接</th><th>颜色</th></tr>
-          <tr><td>PA0</td><td>输出</td><td>BTS7960 LPWM（缩回）</td><td style="color:#ea580c">橙</td></tr>
-          <tr><td>PA1</td><td>输出</td><td>BTS7960 RPWM（伸出）</td><td style="color:#ea580c">橙</td></tr>
+          <tr><td>PA0</td><td>输出</td><td>四路继电器 IN1 / K1（缩回）</td><td style="color:#ea580c">橙</td></tr>
+          <tr><td>PA1</td><td>输出</td><td>四路继电器 IN2 / K2（伸出）</td><td style="color:#ea580c">橙</td></tr>
           <tr><td>PA4</td><td>输出</td><td>LED D1 缩回指示</td><td style="color:#f59e0b">琥珀</td></tr>
           <tr><td>PA5</td><td>输出</td><td>LED D2 伸出指示</td><td style="color:#22c55e">绿</td></tr>
           <tr><td>PA6</td><td>输出</td><td>LED D3 串口状态</td><td style="color:#2563eb">蓝</td></tr>
-          <tr><td>PA2</td><td>输出</td><td>四路继电器 IN1 → COM1/NO1 继续</td><td style="color:#059669">绿</td></tr>
-          <tr><td>PA3</td><td>输出</td><td>四路继电器 IN2 → COM2/NO2 原点</td><td style="color:#059669">绿</td></tr>
+          <tr><td>PA2</td><td>输出</td><td>四路继电器 IN3 / K3 → COM3/NO3 继续</td><td style="color:#059669">绿</td></tr>
+          <tr><td>PA3</td><td>输出</td><td>四路继电器 IN4 / K4 → COM4/NO4 原点</td><td style="color:#059669">绿</td></tr>
           <tr><td>PA9/10</td><td>串口</td><td>USB-TTL 交叉连接</td><td style="color:#2563eb">蓝</td></tr>
           <tr><td>PA13/14</td><td>SWD</td><td>ST-LINK 烧录</td><td style="color:#2563eb">蓝</td></tr>
         </table>
@@ -913,89 +908,60 @@
       <div class="canvas-wrap">
         <svg viewBox="0 0 820 520" width="100%">
           <rect x="40" y="40" width="360" height="300" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
-          <text x="220" y="68" text-anchor="middle" font-size="16" font-weight="700" fill="#9a3412">U2 · BTS7960 双 H 桥</text>
+          <text x="220" y="68" text-anchor="middle" font-size="16" font-weight="700" fill="#9a3412">K1/K2 · 四路继电器电机换向</text>
 
-          <text x="60" y="96" font-size="12" font-weight="700" fill="#334155">控制侧（接 STM32）</text>
-          <rect x="60" y="106" width="320" height="110" rx="6" fill="#fff" stroke="#d1d5db"/>
-          <text x="80" y="128" font-size="11" fill="#ea580c" font-weight="700">LPWM</text>
-          <text x="150" y="128" font-size="11" fill="#ea580c" font-weight="700">RPWM</text>
-          <text x="220" y="128" font-size="11" fill="#e67e22" font-weight="700">R_EN</text>
-          <text x="280" y="128" font-size="11" fill="#e67e22" font-weight="700">L_EN</text>
-          <text x="80" y="168" font-size="11" fill="#94a3b8">R_IS</text>
-          <text x="150" y="168" font-size="11" fill="#94a3b8">L_IS</text>
-          <text x="220" y="168" font-size="11" fill="#e67e22" font-weight="700">VCC</text>
-          <text x="280" y="168" font-size="11" fill="#1f2937" font-weight="700">GND</text>
-          <line x1="60" y1="138" x2="380" y2="138" stroke="#e5e7eb"/>
-          <text x="80" y="152" font-size="10" fill="#065f46">← PA0 缩回</text>
-          <text x="150" y="152" font-size="10" fill="#065f46">← PA1 伸出</text>
-          <text x="220" y="152" font-size="10" fill="#b45309">→ 5V 常高</text>
-          <text x="280" y="152" font-size="10" fill="#b45309">→ 5V 常高</text>
-          <text x="80" y="192" font-size="10" fill="#94a3b8">不接</text>
-          <text x="150" y="192" font-size="10" fill="#94a3b8">不接</text>
-          <text x="220" y="192" font-size="10" fill="#b45309">→ 5V 逻辑</text>
-          <text x="280" y="192" font-size="10" fill="#374151">→ 系统 GND</text>
+          <text x="60" y="96" font-size="12" font-weight="700" fill="#334155">控制侧（同一块 U4）</text>
+          <rect x="60" y="106" width="320" height="72" rx="6" fill="#fff" stroke="#d1d5db"/>
+          <text x="80" y="128" font-size="11" fill="#ea580c" font-weight="700">IN1 (K1)</text>
+          <text x="200" y="128" font-size="11" fill="#ea580c" font-weight="700">IN2 (K2)</text>
+          <text x="80" y="168" font-size="10" fill="#065f46">← PA0 缩回</text>
+          <text x="200" y="168" font-size="10" fill="#065f46">← PA1 伸出</text>
 
-          <text x="60" y="240" font-size="12" font-weight="700" fill="#334155">功率侧（接电源与电机）</text>
-          <rect x="60" y="250" width="320" height="72" rx="6" fill="#fff" stroke="#d1d5db"/>
-          <text x="100" y="272" font-size="11" fill="#dc2626" font-weight="700">B+</text>
-          <text x="180" y="272" font-size="11" fill="#1f2937" font-weight="700">B-</text>
-          <text x="260" y="272" font-size="11" fill="#ea580c" font-weight="700">M+</text>
-          <text x="330" y="272" font-size="11" fill="#ea580c" font-weight="700">M-</text>
-          <line x1="60" y1="282" x2="380" y2="282" stroke="#e5e7eb"/>
-          <text x="100" y="302" font-size="10" fill="#b91c1c">24V 电源 +</text>
-          <text x="180" y="302" font-size="10" fill="#374151">24V 电源 - / GND</text>
-          <text x="260" y="302" font-size="10" fill="#9a3412">伸缩杆线 1</text>
-          <text x="330" y="302" font-size="10" fill="#9a3412">伸缩杆线 2</text>
+          <text x="60" y="200" font-size="12" font-weight="700" fill="#334155">触点侧（24V，停止断电）</text>
+          <rect x="60" y="210" width="320" height="112" rx="6" fill="#fff" stroke="#d1d5db"/>
+          <text x="80" y="232" font-size="10" fill="#dc2626">COM1 ← 24V+</text>
+          <text x="200" y="232" font-size="10" fill="#1f2937">COM2 ← GND</text>
+          <text x="80" y="252" font-size="10" fill="#9a3412">NO1 + NC1 → 电机正极 (+)</text>
+          <text x="80" y="272" font-size="10" fill="#9a3412">NO2 → 电机负极 (−)</text>
+          <text x="80" y="292" font-size="10" fill="#64748b">NC2 悬空不接</text>
+          <text x="80" y="312" font-size="10" fill="#64748b">停止：K1/K2 释放，电机无电压</text>
 
-          <!-- STM32 连接示意 -->
           <rect x="460" y="80" width="120" height="56" rx="8" fill="#0369a1" stroke="#0c4a6e"/>
           <text x="520" y="104" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">STM32</text>
           <text x="520" y="124" text-anchor="middle" fill="#bae6fd" font-size="11">PA0 / PA1</text>
-          <line x1="460" y1="100" x2="380" y2="148" stroke="#ea580c" stroke-width="2"/>
-          <line x1="460" y1="116" x2="380" y2="148" stroke="#ea580c" stroke-width="2"/>
-          <text x="420" y="118" font-size="10" fill="#ea580c">PA0→LPWM</text>
-          <text x="420" y="132" font-size="10" fill="#ea580c">PA1→RPWM</text>
 
           <rect x="460" y="250" width="120" height="50" rx="8" fill="#fee2e2" stroke="#dc2626"/>
           <text x="520" y="280" text-anchor="middle" fill="#991b1b" font-size="13" font-weight="700">24V 电源</text>
-          <line x1="460" y1="275" x2="160" y2="272" stroke="#dc2626" stroke-width="2"/>
-          <line x1="460" y1="290" x2="240" y2="272" stroke="#1f2937" stroke-width="2"/>
 
           <rect x="460" y="330" width="140" height="50" rx="8" fill="#fef3c7" stroke="#f59e0b"/>
           <text x="530" y="360" text-anchor="middle" fill="#92400e" font-size="13" font-weight="700">伸缩杆电机</text>
-          <line x1="460" y1="350" x2="320" y2="272" stroke="#ea580c" stroke-width="2"/>
-          <line x1="460" y1="365" x2="390" y2="272" stroke="#ea580c" stroke-width="2"/>
 
           <g font-size="12" fill="#334155">
-            <text x="460" y="420">固件逻辑（与模块匹配）：</text>
-            <text x="460" y="442">PA0=1 PA1=0 → LPWM 高 → 缩回</text>
-            <text x="460" y="464">PA0=0 PA1=1 → RPWM 高 → 伸出</text>
-            <text x="460" y="486">PA0=0 PA1=0 → 停止（双低）</text>
-            <text x="460" y="508" fill="#64748b">方向反了：对调 M+ 与 M- 即可，不必改代码</text>
+            <text x="460" y="420">固件逻辑（与继电器匹配）：</text>
+            <text x="460" y="442">PA0=1 PA1=1 → K1+K2 吸合 → 缩回</text>
+            <text x="460" y="464">PA0=0 PA1=1 → 仅 K2 吸合 → 伸出</text>
+            <text x="460" y="486">PA0=0 PA1=0 → 释放 → 停止（断电）</text>
+            <text x="460" y="508" fill="#64748b">方向反了：对调电机正/负线</text>
           </g>
         </svg>
 
         <table class="pin-table">
           <tr><th>端子</th><th>接法</th><th>说明</th></tr>
-          <tr><td>LPWM</td><td>STM32 PA0</td><td>固件 RETRACT 时拉高</td></tr>
-          <tr><td>RPWM</td><td>STM32 PA1</td><td>固件 EXTEND 时拉高</td></tr>
-          <tr><td>R_EN</td><td>5V（常高）</td><td>与 L_EN 一起使能半桥，不可用 3.3V 代替 5V 若模块要求 5V</td></tr>
-          <tr><td>L_EN</td><td>5V（常高）</td><td>可用跳线帽短接到 VCC</td></tr>
-          <tr><td>R_IS / L_IS</td><td>不接</td><td>电流检测输出，本方案不用</td></tr>
-          <tr><td>VCC</td><td>5V</td><td>模块逻辑电源，不是 24V</td></tr>
-          <tr><td>GND</td><td>系统 GND</td><td>与 STM32、24V 负极、B- 共地</td></tr>
-          <tr><td>B+</td><td>24V 电源正极</td><td>电机主电源入口，线要粗</td></tr>
-          <tr><td>B-</td><td>24V 电源负极</td><td>即 GND，必须接实</td></tr>
-          <tr><td>M+ / M-</td><td>伸缩杆两根线</td><td>接到电机输出；方向反了对调这两根</td></tr>
+          <tr><td>IN1 (K1)</td><td>STM32 PA0</td><td>缩回时与 K2 同时吸合</td></tr>
+          <tr><td>IN2 (K2)</td><td>STM32 PA1</td><td>伸出时单独吸合</td></tr>
+          <tr><td>COM1</td><td>24V+</td><td>电机电源正极</td></tr>
+          <tr><td>COM2</td><td>GND</td><td>电机电源负极</td></tr>
+          <tr><td>NO1 + NC1</td><td>电机正极 (+)</td><td>并到同一接线点</td></tr>
+          <tr><td>NO2</td><td>电机负极 (−)</td><td>NC2 悬空</td></tr>
         </table>
 
         <div class="detail-box">
           <h3>常见错误（请避免）</h3>
           <ul>
-            <li><span class="highlight">24V 接到 VCC</span>：会烧模块；24V 只接 B+，VCC 只接 5V</li>
-            <li><span class="highlight">B- 悬空</span>：B- 必须接电源负极/GND</li>
-            <li><span class="highlight">R_EN/L_EN 悬空</span>：半桥不使能，电机不转</li>
-            <li><span class="highlight">PA0 与 PA1 同时为高</span>：固件已互锁禁止，接线不要强行并联两路高电平</li>
+            <li><span class="highlight">旧交叉接法</span>（NO1+NC2、NC1+NO2）：停止时电机仍通电，须拆掉</li>
+            <li><span class="highlight">NC2 误接电机</span>：停止时可能仍通电</li>
+            <li><span class="highlight">24V 接到 DC+</span>：会烧模块线圈电路</li>
+            <li><span class="highlight">跳线插在 L</span>：逻辑反相，继电器常吸合</li>
           </ul>
         </div>
       </div>
@@ -1092,24 +1058,27 @@
 
         <table class="pin-table">
           <tr><th>端子</th><th>本方案接法</th><th>说明</th></tr>
-          <tr><td>DC+</td><td>5V 正极</td><td>继电器线圈/光耦电源；常见接 5V，勿接 STM32 3.3V 引脚</td></tr>
+          <tr><td>DC+</td><td>12V 正极</td><td>12V 光耦模块；5V 模块接 5V；勿接 24V 或 STM32 3.3V</td></tr>
           <tr><td>DC-</td><td>系统 GND</td><td>必须与 STM32 GND 共地</td></tr>
-          <tr><td>IN1</td><td>STM32 PA2</td><td>固件 PULSE_A，模拟「继续」</td></tr>
-          <tr><td>IN2</td><td>STM32 PA3</td><td>固件 PULSE_B，模拟「原点」</td></tr>
-          <tr><td>IN3 / IN4</td><td>不接</td><td>预留第三、四路</td></tr>
-          <tr><td>S1 / S2</td><td>跳线帽插上</td><td>高电平触发，与固件 PA 高电平脉冲一致</td></tr>
-          <tr><td>S3 / S4</td><td>默认即可</td><td>对应 IN3/IN4，未用可不调整</td></tr>
-          <tr><td>COM1 + NO1</td><td>「继续」按钮两端</td><td>干触点并联；NC1 悬空</td></tr>
-          <tr><td>COM2 + NO2</td><td>「原点」按钮两端</td><td>干触点并联；NC2 悬空</td></tr>
-          <tr><td>CH3 / CH4 触点</td><td>不接</td><td>NO3/COM3/NC3、NO4/COM4/NC4 均闲置</td></tr>
+          <tr><td>IN1</td><td>STM32 PA0</td><td>K1 缩回（与 K2 同时吸合）</td></tr>
+          <tr><td>IN2</td><td>STM32 PA1</td><td>K2 伸出（单独吸合）</td></tr>
+          <tr><td>IN3</td><td>STM32 PA2</td><td>K3 脉冲模拟「继续」</td></tr>
+          <tr><td>IN4</td><td>STM32 PA3</td><td>K4 脉冲模拟「原点」</td></tr>
+          <tr><td>S1 ~ S4</td><td>跳线插 H</td><td>高电平触发；光耦模块可能无声</td></tr>
+          <tr><td>COM1</td><td>24V+</td><td>电机主电源正极</td></tr>
+          <tr><td>COM2</td><td>GND (24V-)</td><td>电机主电源负极</td></tr>
+          <tr><td>NO1 + NC1</td><td>电机正极 (+)</td><td>见 wiring.md §5.3</td></tr>
+          <tr><td>NO2</td><td>电机负极 (−)</td><td>NC2 悬空</td></tr>
+          <tr><td>COM3 + NO3</td><td>「继续」按钮</td><td>干触点并联；NC3 悬空</td></tr>
+          <tr><td>COM4 + NO4</td><td>「原点」按钮</td><td>干触点并联；NC4 悬空</td></tr>
         </table>
 
         <div class="detail-box">
           <h3>接线要点</h3>
           <ul>
-            <li>本系统只用 <span class="highlight">2 路</span>：IN1+COM1/NO1（继续）、IN2+COM2/NO2（原点）</li>
-            <li><span class="highlight">S1、S2 跳线插上</span>：选择高电平触发，PA2/PA3 输出高电平时继电器吸合</li>
-            <li>若继电器不吸合：检查 DC+ 是否有 5V、DC- 是否共地、跳线方向是否正确</li>
+            <li>四路全部使用：<span class="highlight">IN1/IN2 电机</span>、<span class="highlight">IN3/IN4 按钮</span></li>
+            <li>缩回时 <span class="highlight">K1+K2 同时吸合</span>；伸出时仅 K2；停止时全部释放</li>
+            <li>若继电器不吸合：检查 DC+ 是否有 12V、DC- 是否共地、跳线是否插 H</li>
             <li>先用万用表确认机器按钮为 <span class="highlight">干触点</span>（按下通、松开断），再并联 COM/NO</li>
             <li>切勿把 220V 或未知强电按钮直接并联；强电须用隔离方案</li>
           </ul>
@@ -1129,7 +1098,7 @@
           <line x1="400" y1="70" x2="520" y2="130" stroke="#dc2626" stroke-width="2"/>
 
           <rect x="80" y="130" width="140" height="50" rx="8" fill="#ffedd5" stroke="#ea580c"/>
-          <text x="150" y="160" text-anchor="middle" font-size="12" fill="#9a3412">电机驱动</text>
+          <text x="150" y="160" text-anchor="middle" font-size="12" fill="#9a3412">继电器电机触点</text>
 
           <rect x="280" y="130" width="140" height="50" rx="8" fill="#fef3c7" stroke="#f59e0b"/>
           <text x="350" y="160" text-anchor="middle" font-size="12" fill="#92400e">DC-DC 降压</text>
@@ -1174,9 +1143,9 @@
         { id: "wire-pwr12", label: "+24V 电源线", color: "#c41e3a" },
         { id: "wire-pwr33", label: "+3V3 电源线", color: "#e67e22" },
         { id: "wire-gnd", label: "GND 地线", color: "#374151" },
-        { id: "wire-motor", label: "电机 BTS7960", color: "#ea580c" },
+        { id: "wire-motor", label: "电机 K1/K2", color: "#ea580c" },
         { id: "wire-led", label: "LED 指示灯", color: "#f59e0b" },
-        { id: "wire-relay", label: "继电器 PA2/PA3", color: "#059669" },
+        { id: "wire-relay", label: "继电器 IN3/IN4", color: "#059669" },
         { id: "wire-uart", label: "串口 TX/RX", color: "#2563eb" },
         { id: "wire-stlink", label: "ST-LINK SWD", color: "#16a34a" },
         { id: "wire-btn", label: "按钮触点", color: "#64748b" },
@@ -1189,7 +1158,7 @@
         { id: "part-u1", label: "U1 STM32", box: true },
         { id: "part-j2", label: "J2 ST-LINK", box: true },
         { id: "part-j1", label: "J1 USB-TTL", box: true },
-        { id: "part-u2", label: "U2 BTS7960 + M1", box: true },
+        { id: "part-u2", label: "M1 伸缩杆电机", box: true },
         { id: "part-led", label: "D1/D2/D3 LED", box: true },
         { id: "part-relay", label: "U4 四路继电器", box: true },
         { id: "part-sw", label: "SW1/SW2 按钮", box: true },
@@ -1213,7 +1182,7 @@
         ]),
         motor: () => applyOnly([
           "wire-motor", "wire-pwr12", "wire-pwr33", "wire-gnd",
-          "part-u1", "part-u2", "part-ps1", "part-u3", "part-pwr-rail", "part-junction",
+          "part-u1", "part-u2", "part-relay", "part-ps1", "part-u3", "part-pwr-rail", "part-junction",
         ]),
         relay: () => applyOnly([
           "wire-relay", "wire-btn", "wire-pwr33", "wire-gnd",

@@ -8,8 +8,9 @@
 
 int main(void)
 {
-	Board_Init();
+	/* 最先拉低 PA0/PA1，避免上电瞬间继电器 IN1/IN2 因浮空误触发 */
 	Motor_Init();
+	Board_Init();
 	Relay_Init();
 	Led_Init();
 	Serial_Init();

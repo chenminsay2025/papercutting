@@ -1,13 +1,13 @@
 {
   "serial": {
-    "port": "COM12",
+    "port": "COM11",
     "baudrate": 115200,
     "timeout_ms": 2000
   },
   "timings_ms": {
-    "retract": 3000,
-    "extend": 3000,
-    "cut_wait": 6000,
+    "retract": 500,
+    "extend": 500,
+    "cut_wait": 100,
     "relay_pulse": 200,
     "before_send_keys": 200,
     "after_focus_ms": 500,
@@ -19,6 +19,8 @@
   },
   "app": {
     "simulation_mode": false,
-    "simulate_cut": false
+    "simulate_cut": false,
+    "auto_loop": true,
+    "loop_interval_ms": 100
   }
 }

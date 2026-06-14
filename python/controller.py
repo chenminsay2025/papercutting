@@ -211,7 +211,14 @@ class ControllerService:
 
             if cmd == "start_cycle":
                 self.workflow.start_cycle(self.config)
-                reply({"event": "cycle_started"})
+                app_cfg = self.config.get("app", {})
+                reply(
+                    {
+                        "event": "cycle_started",
+                        "auto_loop": bool(app_cfg.get("auto_loop", False)),
+                        "loop_interval_ms": int(app_cfg.get("loop_interval_ms", 0)),
+                    }
+                )
                 return
 
             if cmd == "estop":
@@ -221,7 +228,8 @@ class ControllerService:
 
             if cmd == "test_step":
                 step = message.get("step")
-                self.workflow.test_step(step, self.config)
+                duration_ms = message.get("duration_ms")
+                self.workflow.test_step(step, self.config, duration_ms=duration_ms)
                 reply({"event": "test_done", "step": step})
                 return
 

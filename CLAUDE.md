@@ -54,9 +54,9 @@ Text-based, line-delimited with `\r\n`. Commands are case-insensitive (uppercase
 | Command | Response | Purpose |
 |---------|----------|---------|
 | `PING` | `OK:PONG` | Connectivity check |
-| `RETRACT` | `OK` | BTS7960 LPWM high (retract) |
-| `EXTEND` | `OK` | Motor extend (PA1 high) |
-| `STOP` | `OK` | Motor stop (both low) |
+| `RETRACT` | `OK` | K1 吸合（PA0 高，缩回） |
+| `EXTEND` | `OK` | K2 吸合（PA1 高，伸出） |
+| `STOP` | `OK` | K1/K2 释放（停止） |
 | `ESTOP` | `OK:ESTOP` | Motor stop + relays off |
 | `PULSE_A:200` | `OK` | Relay A pulse for N ms |
 | `PULSE_B:200` | `OK` | Relay B pulse for N ms |
@@ -82,10 +82,10 @@ Text-based, line-delimited with `\r\n`. Commands are case-insensitive (uppercase
 
 | Pin | Function | Direction |
 |-----|----------|-----------|
-| PA0 | BTS7960 LPWM (retract) | Output |
-| PA1 | BTS7960 RPWM (extend) | Output |
-| PA2 | Relay A (continue) | Output |
-| PA3 | Relay B (origin) | Output |
+| PA0 | Relay IN1 / K1 (retract) | Output |
+| PA1 | Relay IN2 / K2 (extend) | Output |
+| PA2 | Relay IN3 / K3 (continue) | Output |
+| PA3 | Relay IN4 / K4 (origin) | Output |
 | PA4 | LED retract | Output |
 | PA5 | LED extend | Output |
 | PA6 | LED serial/COM status | Output |
@@ -93,9 +93,9 @@ Text-based, line-delimited with `\r\n`. Commands are case-insensitive (uppercase
 | PA10 | USART1 RX (USB-TTL) | Input |
 
 **Key firmware modules in `firmware/User/`:**
-- `main.c` — Init sequence: Board → Motor → Relay → Led → Serial → Protocol. Main loop: `Protocol_Poll()` + `Relay_Tick()` + `Led_Tick()`.
+- `main.c` — Init sequence: Motor (first, pull PA0/PA1 low) → Board → Relay → Led → Serial → Protocol. Main loop: `Protocol_Poll()` + `Relay_Tick()` + `Led_Tick()`.
 - `protocol.c` — Parses text commands (case-insensitive), dispatches to motor/relay modules. `Protocol_IsCommActive()` for COM LED (3s window).
-- `motor.c` — BTS7960 LPWM/RPWM direction control; never energizes both directions simultaneously.
+- `motor.c` — H-bridge relays (jumpers H): retract IN1 only; extend IN2 only; stop both released; 80ms before reverse.
 - `led.c` — PA4/PA5 motor status LEDs; PA6 COM LED (fast blink offline, PWM breathing when comm active).
 - `relay.c` — Pulse-based relay control with tick-based auto-off timing.
 - `board.h` — All pin definitions consolidated here.

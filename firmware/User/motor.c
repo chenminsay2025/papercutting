@@ -1,7 +1,12 @@
 #include "motor.h"
 #include "board.h"
 
-/* BTS7960: LPWM/RPWM 方向控制，停止时双低；换向前先 STOP 80ms */
+/* 2 线电机 H 桥（docs/wiring.md §5.3，跳线 H）
+ * NO1-NO2 拱桥→24V+，NC1-NC2 拱桥→GND，COM1/COM2→电机
+ * 缩回：仅 IN1（PA0=1 PA1=0）
+ * 伸出：仅 IN2（PA0=0 PA1=1）
+ * 停止：全释放（PA0=0 PA1=0）；换向前先停 80ms
+ */
 static MotorState_t s_state = MOTOR_STATE_STOP;
 
 #define MOTOR_DIR_SWITCH_MS 80
@@ -35,6 +40,7 @@ static void Motor_ApplyDirection(uint8_t retract_on, uint8_t extend_on)
 {
 	if (retract_on && extend_on)
 	{
+		/* H 桥下双吸合为安全刹车(两端同+24V)；此处按停止处理 */
 		Motor_SetOutputs(0, 0);
 		s_state = MOTOR_STATE_STOP;
 		return;
@@ -52,6 +58,7 @@ static void Motor_ApplyDirection(uint8_t retract_on, uint8_t extend_on)
 	}
 
 	Motor_SetOutputs(retract_on, extend_on);
+
 	if (retract_on)
 	{
 		s_state = MOTOR_STATE_RETRACT;

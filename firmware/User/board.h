@@ -3,7 +3,7 @@
 
 #include "stm32f10x.h"
 
-/* BTS7960: PA0=LPWM(缩回), PA1=RPWM(伸出); R_EN/L_EN 模块上接常高 */
+/* 四路继电器 H 桥：PA0=IN1 缩回，PA1=IN2 伸出；COM1/COM2 接电机 */
 #define MOTOR_RETRACT_PIN   GPIO_Pin_0
 #define MOTOR_EXTEND_PIN    GPIO_Pin_1
 #define MOTOR_GPIO          GPIOA

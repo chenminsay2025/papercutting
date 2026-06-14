@@ -30,7 +30,11 @@
             <span><strong>手动放纸</strong>，到位后点开始</span>
           </div>
 
-          <div class="step-timeline" id="stepTimeline"></div>
+          <div class="step-editor-header">
+            <span class="step-editor-title">执行步骤</span>
+            <span class="step-editor-hint">勾选启用 · 可插入/删除 · 支持等待</span>
+          </div>
+          <div class="step-editor" id="stepEditor"></div>
 
           <div class="hero-status">
             <div class="hero-row">
@@ -47,15 +51,13 @@
             <button id="startBtn" type="button" class="btn btn-primary btn-large">开始本轮</button>
             <button id="estopBtn" type="button" class="btn btn-danger btn-compact">急停</button>
           </div>
+          <div class="loop-row">
+            <label class="toggle-row"><input id="autoLoop" type="checkbox" /><span>自动循环</span></label>
+            <label class="loop-interval">轮间间隔 (ms)<input id="loopIntervalMs" type="number" min="0" step="500" value="3000" title="每轮完成后等待多久再开始下一轮；0 表示立即开始" /></label>
+          </div>
 
           <div class="test-section">
-            <div class="test-grid">
-              <button data-step="retract" type="button" class="btn btn-secondary btn-xs">缩回</button>
-              <button data-step="pulse_a" type="button" class="btn btn-secondary btn-xs">继续A</button>
-              <button data-step="send_cut" type="button" class="btn btn-secondary btn-xs">Ctrl+P</button>
-              <button data-step="extend" type="button" class="btn btn-secondary btn-xs">伸出</button>
-              <button data-step="pulse_b" type="button" class="btn btn-secondary btn-xs">原点B</button>
-            </div>
+            <div class="test-hint">步骤右侧「测」按钮可单步测试；时序在右侧配置。</div>
           </div>
         </section>
 

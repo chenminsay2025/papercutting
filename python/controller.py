@@ -8,6 +8,7 @@ import time
 import traceback
 from typing import Any
 
+from action_groups import list_action_groups, load_action_group, save_action_group
 from config import load_config, save_config, validate_config
 from mock_stm32 import MockStm32Client
 from serial_stm32 import Stm32Client
@@ -229,32 +230,37 @@ class ControllerService:
             if cmd == "test_step":
                 step = message.get("step")
                 duration_ms = message.get("duration_ms")
-                self.workflow.test_step(step, self.config, duration_ms=duration_ms)
+                workflow_step = message.get("workflow_step")
+                self.workflow.test_step(
+                    step,
+                    self.config,
+                    workflow_step=workflow_step,
+                    duration_ms=duration_ms,
+                )
                 reply({"event": "test_done", "step": step})
                 return
 
             if cmd == "test_cut_window":
-                from cutting_master import probe_cut_window, send_cut_job
+                from cutting_master import press_hotkey_step, probe_cut_window
 
                 cm = self.config.get("cutting_master", {})
+                timings = self.config.get("timings_ms", {})
                 keyword = str(message.get("keyword") or cm.get("window_title_contains", "")).strip()
                 hotkey = str(message.get("hotkey") or cm.get("send_hotkey", "")).strip()
                 send_keys = bool(message.get("send_keys", False))
-                if len(keyword) < 2:
-                    raise RuntimeError("窗口关键字至少需要 2 个字符")
-                if send_keys and not hotkey:
-                    raise RuntimeError("发送热键不能为空")
 
                 if send_keys:
-                    timings = self.config.get("timings_ms", {})
-                    title = send_cut_job(
-                        keyword,
+                    if not hotkey:
+                        raise RuntimeError("发送热键不能为空")
+                    press_hotkey_step(
                         hotkey,
-                        int(timings.get("before_send_keys", 0)),
-                        int(timings.get("after_focus_ms", 0)),
-                        int(timings.get("after_hotkey_ms", 0)),
+                        int(message.get("delay_before_ms", timings.get("after_focus_ms", 0))),
+                        int(message.get("delay_after_ms", timings.get("after_hotkey_ms", 0))),
                     )
+                    title = hotkey
                 else:
+                    if len(keyword) < 2:
+                        raise RuntimeError("窗口关键字至少需要 2 个字符")
                     title = probe_cut_window(keyword)
 
                 reply(
@@ -274,6 +280,48 @@ class ControllerService:
                         raise RuntimeError("未连接")
                     response = self.client.ping()
                 reply({"event": "serial_ping", "response": response})
+                return
+
+            if cmd == "list_action_groups":
+                reply({"event": "action_groups", "groups": list_action_groups()})
+                return
+
+            if cmd == "save_action_group":
+                if self.workflow.running:
+                    raise RuntimeError("流程运行中，无法保存动作组")
+                name = str(message.get("name", "")).strip()
+                steps = message.get("workflow_steps") or self.config.get("workflow_steps") or []
+                payload = save_action_group(name, steps)
+                reply(
+                    {
+                        "event": "action_group_saved",
+                        "name": payload["name"],
+                        "groups": list_action_groups(),
+                    }
+                )
+                return
+
+            if cmd == "load_action_group":
+                if self.workflow.running:
+                    raise RuntimeError("流程运行中，无法打开动作组")
+                name = str(message.get("name", "")).strip()
+                payload = load_action_group(name)
+                self.config["workflow_steps"] = payload["workflow_steps"]
+                save_config(self.config)
+                reply(
+                    {
+                        "event": "action_group_loaded",
+                        "name": payload["name"],
+                        "config": self.config,
+                    }
+                )
+                return
+
+            if cmd == "prompt_response":
+                prompt_id = str(message.get("prompt_id", "")).strip()
+                action = str(message.get("action", "")).strip()
+                self.workflow.resolve_prompt(prompt_id, action)
+                reply({"event": "prompt_ack", "prompt_id": prompt_id, "action": action})
                 return
 
             reply({"event": "error", "message": f"未知命令: {cmd}"})

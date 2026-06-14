@@ -1,17 +1,42 @@
 const STEP_TYPE_META = {
-  retract: { label: "伸缩杆缩回", timingKey: "retract", testStep: "retract" },
-  pulse_a: { label: "继续 (继电器A)", timingKey: "relay_pulse", testStep: "pulse_a" },
-  send_cut: { label: "发送切割 Ctrl+P", sendCutBudget: true, testStep: "send_cut" },
-  cut_wait: { label: "等待切割", timingKey: "cut_wait", testStep: "cut_wait" },
-  extend: { label: "伸缩杆伸出", timingKey: "extend", testStep: "extend" },
-  pulse_b: { label: "原点 (继电器B)", timingKey: "relay_pulse", testStep: "pulse_b" },
-  wait: { label: "等待", customDuration: true, testStep: "wait" },
+  retract: { label: "伸缩杆缩回", testStep: "retract" },
+  pulse_a: { label: "继续 (继电器A)", testStep: "pulse_a" },
+  focus_window: { label: "获取窗口", testStep: "focus_window" },
+  send_hotkey: { label: "发送快捷键", testStep: "send_hotkey" },
+  cut_wait: { label: "等待切割", testStep: "cut_wait" },
+  extend: { label: "伸缩杆伸出", testStep: "extend" },
+  pulse_b: { label: "原点 (继电器B)", testStep: "pulse_b" },
+  wait: { label: "等待", testStep: "wait" },
 };
+
+const STEP_DEFAULTS = {
+  retract: { duration_ms: 3000 },
+  extend: { duration_ms: 3000 },
+  cut_wait: { duration_ms: 6000 },
+  pulse_a: { duration_ms: 200 },
+  pulse_b: { duration_ms: 200 },
+  wait: { duration_ms: 1000 },
+  focus_window: { window_keyword: "Cutting Master", focus_timeout_ms: 800 },
+  send_hotkey: { hotkey: "ctrl+p", delay_before_ms: 100, delay_after_ms: 200 },
+};
+
+const LEGACY_TIMING_KEYS = {
+  retract: "retract",
+  extend: "extend",
+  cut_wait: "cut_wait",
+  pulse_a: "relay_pulse",
+  pulse_b: "relay_pulse",
+};
+
+const DEFAULT_STEP_TYPES = [
+  "retract", "pulse_a", "focus_window", "send_hotkey", "cut_wait", "extend", "pulse_b",
+];
 
 const INSERT_OPTIONS = [
   { type: "retract", label: "伸缩杆缩回" },
   { type: "pulse_a", label: "继续 (继电器A)" },
-  { type: "send_cut", label: "发送切割" },
+  { type: "focus_window", label: "获取窗口" },
+  { type: "send_hotkey", label: "发送快捷键" },
   { type: "cut_wait", label: "等待切割" },
   { type: "extend", label: "伸缩杆伸出" },
   { type: "pulse_b", label: "原点 (继电器B)" },
@@ -30,6 +55,11 @@ const state = {
   waitingLoop: false,
   loopIntervalMs: 3000,
   totalMs: 0,
+  dragIndex: null,
+  dropInsertIndex: null,
+  actionGroups: [],
+  dropIndicatorEl: null,
+  waitingPrompt: false,
 };
 
 const els = {
@@ -45,19 +75,14 @@ const els = {
   disconnectBtn: document.getElementById("disconnectBtn"),
   simulationMode: document.getElementById("simulationMode"),
   simulateCut: document.getElementById("simulateCut"),
-  retractMs: document.getElementById("retractMs"),
-  extendMs: document.getElementById("extendMs"),
-  cutWaitMs: document.getElementById("cutWaitMs"),
-  relayPulseMs: document.getElementById("relayPulseMs"),
-  beforeSendMs: document.getElementById("beforeSendMs"),
-  afterFocusMs: document.getElementById("afterFocusMs"),
-  afterHotkeyMs: document.getElementById("afterHotkeyMs"),
-  windowKeyword: document.getElementById("windowKeyword"),
-  sendHotkey: document.getElementById("sendHotkey"),
-  testWindowBtn: document.getElementById("testWindowBtn"),
-  testHotkeyBtn: document.getElementById("testHotkeyBtn"),
   saveConfigBtn: document.getElementById("saveConfigBtn"),
   stepEditor: document.getElementById("stepEditor"),
+  insertStepType: document.getElementById("insertStepType"),
+  addStepBtn: document.getElementById("addStepBtn"),
+  groupName: document.getElementById("groupName"),
+  saveGroupBtn: document.getElementById("saveGroupBtn"),
+  groupSelect: document.getElementById("groupSelect"),
+  openGroupBtn: document.getElementById("openGroupBtn"),
   phaseLabel: document.getElementById("phaseLabel"),
   progressText: document.getElementById("progressText"),
   cycleHint: document.getElementById("cycleHint"),
@@ -85,62 +110,171 @@ function newStepId() {
   return `step-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function createStep(type) {
+function escAttr(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
+}
+
+function expandLegacySteps(steps) {
+  const expanded = [];
+  steps.forEach((step) => {
+    if (step.type === "send_cut") {
+      expanded.push({
+        ...step,
+        id: `${step.id || newStepId()}-focus`,
+        type: "focus_window",
+        label: "获取窗口",
+        window_keyword: step.window_keyword,
+        focus_timeout_ms: step.before_send_ms ?? step.focus_timeout_ms ?? 800,
+      });
+      expanded.push({
+        ...step,
+        id: `${step.id || newStepId()}-hotkey`,
+        type: "send_hotkey",
+        label: "发送快捷键",
+        hotkey: step.hotkey || step.send_hotkey || "ctrl+p",
+        delay_before_ms: step.after_focus_ms ?? step.delay_before_ms ?? 100,
+        delay_after_ms: step.after_hotkey_ms ?? step.delay_after_ms ?? 200,
+      });
+    } else {
+      expanded.push(step);
+    }
+  });
+  return expanded;
+}
+
+function findLastStep(type) {
+  return [...state.workflowSteps].reverse().find((step) => step.type === type);
+}
+
+function createStep(type, config) {
   const meta = STEP_TYPE_META[type];
+  const defaults = STEP_DEFAULTS[type] || {};
+  const timings = config?.timings_ms || {};
+  const cm = config?.cutting_master || {};
+  const lastFocus = findLastStep("focus_window");
+  const lastHotkey = findLastStep("send_hotkey");
+
   const step = {
     id: newStepId(),
     type,
     enabled: true,
     label: meta?.label || type,
   };
-  if (type === "wait") {
-    step.duration_ms = 1000;
+
+  if (type === "focus_window") {
+    const base = lastFocus || defaults;
+    step.window_keyword = base.window_keyword || cm.window_title_contains || defaults.window_keyword;
+    step.focus_timeout_ms = base.focus_timeout_ms ?? timings.before_send_keys ?? defaults.focus_timeout_ms;
+  } else if (type === "send_hotkey") {
+    const base = lastHotkey || defaults;
+    step.hotkey = base.hotkey || cm.send_hotkey || defaults.hotkey;
+    step.delay_before_ms = base.delay_before_ms ?? timings.after_focus_ms ?? defaults.delay_before_ms;
+    step.delay_after_ms = base.delay_after_ms ?? timings.after_hotkey_ms ?? defaults.delay_after_ms;
+  } else {
+    const legacyKey = LEGACY_TIMING_KEYS[type] || type;
+    step.duration_ms = defaults.duration_ms ?? timings[legacyKey] ?? 1000;
   }
   return step;
 }
 
-function normalizeWorkflowSteps(steps) {
-  if (!Array.isArray(steps) || steps.length === 0) {
-    return INSERT_OPTIONS.slice(0, 6).map((opt) => createStep(opt.type));
+function normalizeWorkflowSteps(steps, config) {
+  const timings = config?.timings_ms || {};
+  const cm = config?.cutting_master || {};
+  const source = expandLegacySteps(Array.isArray(steps) && steps.length ? steps : []);
+  if (!source.length) {
+    return DEFAULT_STEP_TYPES.map((type) => createStep(type, config));
   }
-  return steps.map((step) => ({
-    id: step.id || newStepId(),
-    type: step.type,
-    enabled: step.enabled !== false,
-    label: step.label || STEP_TYPE_META[step.type]?.label || step.type,
-    ...(step.type === "wait" ? { duration_ms: Number(step.duration_ms) || 1000 } : {}),
-  }));
+  return source.map((step) => {
+    const type = step.type;
+    if (!STEP_TYPE_META[type]) return null;
+    const normalized = {
+      id: step.id || newStepId(),
+      type,
+      enabled: step.enabled !== false,
+      label: step.label || STEP_TYPE_META[type]?.label || type,
+    };
+    if (type === "focus_window") {
+      normalized.window_keyword = step.window_keyword || cm.window_title_contains || STEP_DEFAULTS.focus_window.window_keyword;
+      normalized.focus_timeout_ms = Number(
+        step.focus_timeout_ms ?? step.before_send_ms ?? timings.before_send_keys ?? STEP_DEFAULTS.focus_window.focus_timeout_ms
+      );
+    } else if (type === "send_hotkey") {
+      normalized.hotkey = step.hotkey || step.send_hotkey || cm.send_hotkey || STEP_DEFAULTS.send_hotkey.hotkey;
+      normalized.delay_before_ms = Number(
+        step.delay_before_ms ?? step.after_focus_ms ?? timings.after_focus_ms ?? STEP_DEFAULTS.send_hotkey.delay_before_ms
+      );
+      normalized.delay_after_ms = Number(
+        step.delay_after_ms ?? step.after_hotkey_ms ?? timings.after_hotkey_ms ?? STEP_DEFAULTS.send_hotkey.delay_after_ms
+      );
+    } else {
+      const legacyKey = LEGACY_TIMING_KEYS[type] || type;
+      normalized.duration_ms = Number(step.duration_ms ?? timings[legacyKey] ?? STEP_DEFAULTS[type]?.duration_ms ?? 1000);
+    }
+    return normalized;
+  }).filter(Boolean);
 }
 
-function currentTimings() {
-  return {
-    retract: Number(els.retractMs.value) || 0,
-    extend: Number(els.extendMs.value) || 0,
-    cut_wait: Number(els.cutWaitMs.value) || 0,
-    relay_pulse: Number(els.relayPulseMs.value) || 0,
-    before_send_keys: Number(els.beforeSendMs.value) || 0,
-    after_focus_ms: Number(els.afterFocusMs.value) || 0,
-    after_hotkey_ms: Number(els.afterHotkeyMs.value) || 0,
-  };
-}
-
-function sendCutBudgetMs(timings) {
-  return timings.before_send_keys + timings.after_focus_ms + timings.after_hotkey_ms;
-}
-
-function stepDurationMs(step, timings) {
-  const meta = STEP_TYPE_META[step.type];
+function stepDurationMs(step) {
   if (!step.enabled) return 0;
-  if (step.type === "wait") return Number(step.duration_ms) || 0;
-  if (meta?.sendCutBudget) {
+  if (step.type === "focus_window") {
     if (state.simulation && els.simulateCut.checked) return 0;
-    return sendCutBudgetMs(timings);
+    return Number(step.focus_timeout_ms) || 0;
+  }
+  if (step.type === "send_hotkey") {
+    if (state.simulation && els.simulateCut.checked) return 0;
+    return (Number(step.delay_before_ms) || 0) + (Number(step.delay_after_ms) || 0);
   }
   if (step.type === "pulse_a" || step.type === "pulse_b") {
-    return (timings.relay_pulse || 0) + 30;
+    return (Number(step.duration_ms) || 0) + 30;
   }
-  if (meta?.timingKey) return timings[meta.timingKey] || 0;
-  return 0;
+  return Number(step.duration_ms) || 0;
+}
+
+function renderInlineField(label, field, step, index, canEdit, inputAttrs = "") {
+  const dis = canEdit ? "" : "disabled";
+  const value = escAttr(step[field] ?? "");
+  return `<label class="step-inline-field">${label}<input type="text" data-field="${field}" data-index="${index}" value="${value}" ${dis} ${inputAttrs} /></label>`;
+}
+
+function renderInlineNumber(label, field, step, index, canEdit, min = 0, stepVal = 100) {
+  const dis = canEdit ? "" : "disabled";
+  return `<label class="step-inline-field">${label}<input type="number" min="${min}" step="${stepVal}" data-field="${field}" data-index="${index}" value="${step[field] ?? 0}" ${dis} /></label>`;
+}
+
+function renderStepParams(step, index, canEdit) {
+  if (step.type === "focus_window") {
+    return `
+      ${renderInlineField("窗口", "window_keyword", step, index, canEdit, 'class="step-input-grow"')}
+      ${renderInlineNumber("超时ms", "focus_timeout_ms", step, index, canEdit, 0, 100)}
+    `;
+  }
+  if (step.type === "send_hotkey") {
+    return `
+      ${renderInlineField("快捷键", "hotkey", step, index, canEdit)}
+      ${renderInlineNumber("前延迟", "delay_before_ms", step, index, canEdit, 0, 50)}
+      ${renderInlineNumber("后延迟", "delay_after_ms", step, index, canEdit, 0, 50)}
+    `;
+  }
+  const isPulse = step.type === "pulse_a" || step.type === "pulse_b";
+  const label = step.type === "wait" ? "等待ms" : "时长ms";
+  return renderInlineNumber(label, "duration_ms", step, index, canEdit, isPulse ? 50 : 0, isPulse ? 10 : 100);
+}
+
+function renderStepTestButtons(step, index, canEdit) {
+  const disabled = !(canEdit && state.connected);
+  const dis = disabled ? "disabled" : "";
+  if (step.type === "focus_window") {
+    return `<button type="button" class="btn btn-secondary btn-xs step-test-window" data-index="${index}" ${dis} title="测试获取窗口">窗</button>`;
+  }
+  if (step.type === "send_hotkey") {
+    return `<button type="button" class="btn btn-secondary btn-xs step-test-hotkey" data-index="${index}" ${dis} title="测试快捷键">键</button>`;
+  }
+  const meta = STEP_TYPE_META[step.type];
+  if (!meta?.testStep) return "";
+  return `<button type="button" class="btn btn-secondary btn-xs step-test" data-test-step="${meta.testStep}" data-index="${index}" ${dis}>测</button>`;
 }
 
 function enabledSteps() {
@@ -148,51 +282,161 @@ function enabledSteps() {
 }
 
 function renderStepEditor() {
-  const timings = currentTimings();
   const canEdit = !state.running;
 
   els.stepEditor.innerHTML = state.workflowSteps.map((step, index) => {
-    const meta = STEP_TYPE_META[step.type] || {};
-    const duration = stepDurationMs(step, timings);
+    const duration = stepDurationMs(step);
     let status = "pending";
     if (step.id === state.currentStepId) status = "active";
     else if (state.doneStepIds.has(step.id)) status = "done";
     if (!step.enabled) status = "disabled";
 
-    const waitField = step.type === "wait"
-      ? `<label class="step-wait-ms">等待 (ms)<input type="number" min="0" step="100" data-field="duration_ms" data-index="${index}" value="${step.duration_ms ?? 1000}" ${canEdit ? "" : "disabled"} /></label>`
-      : `<span class="step-duration">${duration} ms</span>`;
-
-    const insertOptions = INSERT_OPTIONS.map(
-      (opt) => `<button type="button" class="insert-option" data-insert-type="${opt.type}" data-after-index="${index}">${opt.label}</button>`
-    ).join("");
-
     return `
-      <div class="step-row ${status}" data-step-id="${step.id}">
-        <label class="step-enable" title="是否执行">
-          <input type="checkbox" data-field="enabled" data-index="${index}" ${step.enabled ? "checked" : ""} ${canEdit ? "" : "disabled"} />
-        </label>
-        <div class="step-index">${index + 1}</div>
-        <div class="step-body">
+      <div class="step-row ${status}" data-step-id="${step.id}" data-index="${index}">
+        <div class="step-row-main">
+          <button type="button" class="step-drag" draggable="${canEdit ? "true" : "false"}" data-index="${index}" title="拖拽排序" ${canEdit ? "" : "disabled"}>⋮⋮</button>
+          <label class="step-enable" title="是否执行">
+            <input type="checkbox" data-field="enabled" data-index="${index}" ${step.enabled ? "checked" : ""} ${canEdit ? "" : "disabled"} />
+          </label>
+          <div class="step-index">${index + 1}</div>
           <div class="step-title">${step.label}</div>
-          <div class="step-meta">
-            <span class="step-type">${meta.label || step.type}</span>
-            ${waitField}
+          <span class="step-duration-badge">${duration} ms</span>
+          <div class="step-actions">
+            ${renderStepTestButtons(step, index, canEdit)}
+            <button type="button" class="btn btn-ghost btn-xs step-delete" data-index="${index}" ${canEdit && state.workflowSteps.length > 1 ? "" : "disabled"} title="删除">×</button>
           </div>
         </div>
-        <div class="step-actions">
-          ${meta.testStep ? `<button type="button" class="btn btn-secondary btn-xs step-test" data-test-step="${meta.testStep}" data-index="${index}" ${canEdit && state.connected ? "" : "disabled"}>测</button>` : ""}
-          <button type="button" class="btn btn-ghost btn-xs step-delete" data-index="${index}" ${canEdit && state.workflowSteps.length > 1 ? "" : "disabled"} title="删除">×</button>
-        </div>
-      </div>
-      <div class="step-insert-row">
-        <details class="step-insert" ${canEdit ? "" : "data-disabled=true"}>
-          <summary>＋ 在此后插入</summary>
-          <div class="insert-menu">${insertOptions}</div>
-        </details>
+        <div class="step-row-params">${renderStepParams(step, index, canEdit)}</div>
       </div>
     `;
   }).join("");
+
+  updateToolbarState();
+}
+
+function getDropIndicator() {
+  if (!state.dropIndicatorEl) {
+    state.dropIndicatorEl = document.createElement("div");
+    state.dropIndicatorEl.className = "step-drop-indicator";
+  }
+  return state.dropIndicatorEl;
+}
+
+function clearDragUi() {
+  state.dragIndex = null;
+  state.dropInsertIndex = null;
+  getDropIndicator().remove();
+  els.stepEditor.querySelectorAll(".step-row").forEach((row) => {
+    row.classList.remove("is-dragging", "drop-target");
+  });
+}
+
+function resolveInsertIndex(clientY) {
+  const rows = [...els.stepEditor.querySelectorAll(".step-row")];
+  if (!rows.length) return 0;
+  for (let i = 0; i < rows.length; i += 1) {
+    const rect = rows[i].getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) return i;
+  }
+  return rows.length;
+}
+
+function showDropAt(insertIndex) {
+  if (state.dropInsertIndex === insertIndex) return;
+  state.dropInsertIndex = insertIndex;
+  const rows = [...els.stepEditor.querySelectorAll(".step-row")];
+  rows.forEach((row, index) => {
+    row.classList.toggle("drop-target", index === insertIndex);
+  });
+  const indicator = getDropIndicator();
+  if (insertIndex >= rows.length) {
+    els.stepEditor.appendChild(indicator);
+  } else {
+    els.stepEditor.insertBefore(indicator, rows[insertIndex]);
+  }
+}
+
+function reorderSteps(fromIndex, insertIndex) {
+  if (fromIndex === insertIndex || fromIndex + 1 === insertIndex) return;
+  const [moved] = state.workflowSteps.splice(fromIndex, 1);
+  const target = insertIndex > fromIndex ? insertIndex - 1 : insertIndex;
+  state.workflowSteps.splice(target, 0, moved);
+}
+
+function initStepDragDrop() {
+  els.stepEditor.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest(".step-drag");
+    if (!handle || state.running) return;
+    state.dragIndex = Number(handle.dataset.index);
+    handle.closest(".step-row")?.classList.add("is-dragging");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(state.dragIndex));
+  });
+
+  els.stepEditor.addEventListener("dragover", (event) => {
+    if (state.dragIndex === null || state.running) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    showDropAt(resolveInsertIndex(event.clientY));
+  });
+
+  els.stepEditor.addEventListener("dragleave", (event) => {
+    if (!els.stepEditor.contains(event.relatedTarget)) {
+      clearDragUi();
+    }
+  });
+
+  els.stepEditor.addEventListener("drop", (event) => {
+    event.preventDefault();
+    if (state.dragIndex === null || state.running) return;
+    const insertIndex = resolveInsertIndex(event.clientY);
+    reorderSteps(state.dragIndex, insertIndex);
+    clearDragUi();
+    recalcTotalMs();
+    updateControls();
+  });
+
+  els.stepEditor.addEventListener("dragend", clearDragUi);
+}
+
+function updateToolbarState() {
+  const canEdit = !state.running;
+  els.addStepBtn.disabled = !canEdit;
+  els.saveGroupBtn.disabled = !canEdit;
+  els.openGroupBtn.disabled = !canEdit || !els.groupSelect.value;
+  els.insertStepType.disabled = !canEdit;
+  els.groupName.disabled = !canEdit;
+  els.groupSelect.disabled = !canEdit;
+}
+
+function updateDurationBadges() {
+  els.stepEditor.querySelectorAll(".step-row").forEach((row, index) => {
+    const badge = row.querySelector(".step-duration-badge");
+    const step = state.workflowSteps[index];
+    if (badge && step) badge.textContent = `${stepDurationMs(step)} ms`;
+  });
+}
+function renderActionGroupSelect(groups = state.actionGroups) {
+  state.actionGroups = groups;
+  const current = els.groupSelect.value;
+  els.groupSelect.innerHTML = '<option value="">— 选择 —</option>';
+  groups.forEach((group) => {
+    const option = document.createElement("option");
+    option.value = group.name;
+    option.textContent = `${group.name} (${group.step_count} 步)`;
+    els.groupSelect.appendChild(option);
+  });
+  if (current && groups.some((group) => group.name === current)) {
+    els.groupSelect.value = current;
+  }
+  updateToolbarState();
+}
+
+async function refreshActionGroups() {
+  const response = await sendCommand({ cmd: "list_action_groups" });
+  if (response.event === "action_groups") {
+    renderActionGroupSelect(response.groups || []);
+  }
 }
 
 function updateStartBtnLabel() {
@@ -229,14 +473,26 @@ function updateControls() {
   renderStepEditor();
 }
 
-function recalcTotalMs() {
-  const timings = currentTimings();
+function recalcTotalMs({ rerender = true } = {}) {
   state.totalMs = state.workflowSteps.reduce(
-    (sum, step) => sum + stepDurationMs(step, timings),
+    (sum, step) => sum + stepDurationMs(step),
     0
   );
   updateCycleHint();
-  renderStepEditor();
+  if (rerender) {
+    renderStepEditor();
+  } else {
+    updateDurationBadges();
+  }
+}
+
+function legacyCuttingMasterFromSteps() {
+  const focusStep = state.workflowSteps.find((step) => step.type === "focus_window");
+  const hotkeyStep = state.workflowSteps.find((step) => step.type === "send_hotkey");
+  return {
+    window_title_contains: (focusStep?.window_keyword || "Cutting Master").trim(),
+    send_hotkey: (hotkeyStep?.hotkey || "ctrl+p").trim(),
+  };
 }
 
 function readWorkflowStepsFromState() {
@@ -247,7 +503,14 @@ function readWorkflowStepsFromState() {
       enabled: step.enabled,
       label: step.label,
     };
-    if (step.type === "wait") {
+    if (step.type === "focus_window") {
+      copy.window_keyword = String(step.window_keyword || "").trim();
+      copy.focus_timeout_ms = Number(step.focus_timeout_ms) || 0;
+    } else if (step.type === "send_hotkey") {
+      copy.hotkey = String(step.hotkey || "ctrl+p").trim();
+      copy.delay_before_ms = Number(step.delay_before_ms) || 0;
+      copy.delay_after_ms = Number(step.delay_after_ms) || 0;
+    } else {
       copy.duration_ms = Number(step.duration_ms) || 0;
     }
     return copy;
@@ -257,7 +520,7 @@ function readWorkflowStepsFromState() {
 function applyConfigToForm(config) {
   state.config = config;
   state.simulation = config.app?.simulation_mode !== false;
-  state.workflowSteps = normalizeWorkflowSteps(config.workflow_steps);
+  state.workflowSteps = normalizeWorkflowSteps(config.workflow_steps, config);
   els.simulationMode.checked = state.simulation;
   els.simulateCut.checked = config.app?.simulate_cut !== false;
   els.autoLoop.checked = config.app?.auto_loop === true;
@@ -265,32 +528,29 @@ function applyConfigToForm(config) {
   els.portSelect.value = config.serial.port;
   els.baudrate.value = config.serial.baudrate ?? 115200;
   els.timeoutMs.value = config.serial.timeout_ms ?? 2000;
-  els.retractMs.value = config.timings_ms.retract;
-  els.extendMs.value = config.timings_ms.extend;
-  els.cutWaitMs.value = config.timings_ms.cut_wait;
-  els.relayPulseMs.value = config.timings_ms.relay_pulse;
-  els.beforeSendMs.value = config.timings_ms.before_send_keys;
-  els.afterFocusMs.value = config.timings_ms.after_focus_ms ?? 100;
-  els.afterHotkeyMs.value = config.timings_ms.after_hotkey_ms ?? 200;
-  els.windowKeyword.value = config.cutting_master.window_title_contains;
-  els.sendHotkey.value = config.cutting_master.send_hotkey ?? "ctrl+p";
   recalcTotalMs();
   updateModeBadge();
   updateControls();
 }
 
 function readConfigFromForm() {
+  const cuttingMaster = legacyCuttingMasterFromSteps();
   return {
     serial: {
       port: els.portSelect.value,
       baudrate: Number(els.baudrate.value) || 115200,
       timeout_ms: Number(els.timeoutMs.value) || 2000,
     },
-    timings_ms: currentTimings(),
-    cutting_master: {
-      window_title_contains: els.windowKeyword.value.trim(),
-      send_hotkey: els.sendHotkey.value.trim() || "ctrl+p",
+    timings_ms: state.config?.timings_ms || {
+      retract: 0,
+      extend: 0,
+      cut_wait: 0,
+      relay_pulse: 200,
+      before_send_keys: 0,
+      after_focus_ms: 0,
+      after_hotkey_ms: 0,
     },
+    cutting_master: cuttingMaster,
     app: {
       simulation_mode: els.simulationMode.checked,
       simulate_cut: els.simulateCut.checked,
@@ -334,8 +594,49 @@ function resetRunVisuals() {
   state.doneStepIds = new Set();
 }
 
+let promptInFlight = null;
+
 async function sendCommand(message) {
   return window.cutppaper.sendCommand(message);
+}
+
+async function handleUserPrompt(payload) {
+  if (promptInFlight === payload.prompt_id) return;
+  promptInFlight = payload.prompt_id;
+  state.waitingPrompt = true;
+  els.phaseLabel.textContent = `等待确认: ${payload.step_label || "步骤"}`;
+  updateControls();
+
+  try {
+    await restoreAppFocus();
+    const action = await window.cutppaper.showActionDialog({
+      title: payload.title || "步骤执行出现问题",
+      message: payload.message || "发生未知错误",
+      detail: payload.detail || payload.step_label || "",
+    });
+    const label = action === "retry" ? "重试" : action === "skip" ? "跳过此步" : "停止流程";
+    log("warn", `用户确认: ${label}`);
+    await sendCommand({
+      cmd: "prompt_response",
+      prompt_id: payload.prompt_id,
+      action,
+    });
+  } catch (err) {
+    log("error", err.message);
+    try {
+      await sendCommand({
+        cmd: "prompt_response",
+        prompt_id: payload.prompt_id,
+        action: "abort",
+      });
+    } catch (_err) {
+      // ignore secondary failure
+    }
+  } finally {
+    state.waitingPrompt = false;
+    promptInFlight = null;
+    updateControls();
+  }
 }
 
 async function saveConfigSilently() {
@@ -390,7 +691,7 @@ function handleBackendEvent(payload) {
       sendCommand({ cmd: "get_config" }).then((res) => {
         if (res.event === "config") applyConfigToForm(res.config);
         return refreshPorts();
-      }).then(autoConnectSimulation);
+      }).then(autoConnectSimulation).then(refreshActionGroups);
       break;
     case "python_exit":
       setBadge(els.pythonStatus, "badge-off", "Python 已退出");
@@ -511,16 +812,35 @@ function handleBackendEvent(payload) {
     case "log":
       log(payload.level || "info", payload.message);
       break;
+    case "user_prompt":
+      void handleUserPrompt(payload);
+      break;
     case "error":
-      state.running = false;
-      state.waitingLoop = false;
-      state.loopIndex = 0;
-      state.currentStepId = null;
-      updateControls();
+      if (!state.running) {
+        state.waitingLoop = false;
+        state.loopIndex = 0;
+        state.currentStepId = null;
+        updateControls();
+      }
       log("error", payload.message);
       break;
     case "test_done":
       log("info", `单步测试完成: ${payload.step}`);
+      break;
+    case "action_groups":
+      renderActionGroupSelect(payload.groups || []);
+      break;
+    case "action_group_saved":
+      renderActionGroupSelect(payload.groups || []);
+      els.groupName.value = payload.name || els.groupName.value;
+      els.groupSelect.value = payload.name || "";
+      log("info", `动作组已保存: ${payload.name}`);
+      break;
+    case "action_group_loaded":
+      applyConfigToForm(payload.config);
+      els.groupName.value = payload.name || "";
+      els.groupSelect.value = payload.name || "";
+      log("info", `已打开动作组: ${payload.name}`);
       break;
     default:
       break;
@@ -569,34 +889,28 @@ async function restoreAppFocus() {
   }
 }
 
-els.testWindowBtn.addEventListener("click", async () => {
-  try {
-    await saveConfigSilently();
-    await yieldAppFocus();
-    await sendCommand({
-      cmd: "test_cut_window",
-      keyword: els.windowKeyword.value.trim(),
-      send_keys: false,
-    });
-  } catch (err) {
-    log("error", err.message);
-  }
-});
+async function testFocusWindowStep(step) {
+  await saveConfigSilently();
+  await yieldAppFocus();
+  await sendCommand({
+    cmd: "test_cut_window",
+    keyword: String(step.window_keyword || "").trim(),
+    send_keys: false,
+  });
+}
 
-els.testHotkeyBtn.addEventListener("click", async () => {
-  try {
-    await saveConfigSilently();
-    await yieldAppFocus();
-    await sendCommand({
-      cmd: "test_cut_window",
-      keyword: els.windowKeyword.value.trim(),
-      hotkey: els.sendHotkey.value.trim() || "ctrl+p",
-      send_keys: true,
-    });
-  } catch (err) {
-    log("error", err.message);
-  }
-});
+async function testHotkeyStep(step) {
+  await saveConfigSilently();
+  await yieldAppFocus();
+  await sendCommand({
+    cmd: "test_cut_window",
+    keyword: "Cutting Master",
+    hotkey: String(step.hotkey || "ctrl+p").trim(),
+    send_keys: true,
+    delay_before_ms: Number(step.delay_before_ms) || 0,
+    delay_after_ms: Number(step.delay_after_ms) || 0,
+  });
+}
 
 els.startBtn.addEventListener("click", async () => {
   try {
@@ -616,21 +930,32 @@ els.estopBtn.addEventListener("click", async () => {
 });
 
 els.stepEditor.addEventListener("change", (event) => {
-  const target = event.target;
+  handleStepFieldInput(event.target);
+});
+
+els.stepEditor.addEventListener("input", (event) => {
+  handleStepFieldInput(event.target);
+});
+
+function handleStepFieldInput(target) {
   if (!(target instanceof HTMLInputElement)) return;
   const index = Number(target.dataset.index);
-  if (Number.isNaN(index) || !state.workflowSteps[index]) return;
+  const field = target.dataset.field;
+  if (Number.isNaN(index) || !field || !state.workflowSteps[index]) return;
 
-  if (target.dataset.field === "enabled") {
+  if (field === "enabled") {
     state.workflowSteps[index].enabled = target.checked;
     recalcTotalMs();
     updateControls();
+    return;
   }
-  if (target.dataset.field === "duration_ms") {
-    state.workflowSteps[index].duration_ms = Number(target.value) || 0;
-    recalcTotalMs();
+  if (field === "duration_ms" || field.endsWith("_ms")) {
+    state.workflowSteps[index][field] = Number(target.value) || 0;
+  } else {
+    state.workflowSteps[index][field] = target.value;
   }
-});
+  recalcTotalMs({ rerender: false });
+}
 
 els.stepEditor.addEventListener("click", async (event) => {
   const target = event.target;
@@ -645,17 +970,6 @@ els.stepEditor.addEventListener("click", async (event) => {
     return;
   }
 
-  if (target.classList.contains("insert-option")) {
-    if (state.running) return;
-    const index = Number(target.dataset.afterIndex);
-    const type = target.dataset.insertType;
-    if (Number.isNaN(index) || !type) return;
-    state.workflowSteps.splice(index + 1, 0, createStep(type));
-    recalcTotalMs();
-    updateControls();
-    return;
-  }
-
   if (target.classList.contains("step-test")) {
     const index = Number(target.dataset.index);
     const testStep = target.dataset.testStep;
@@ -663,26 +977,99 @@ els.stepEditor.addEventListener("click", async (event) => {
     if (!testStep || !step) return;
     try {
       await saveConfigSilently();
-      const message = { cmd: "test_step", step: testStep };
-      if (testStep === "wait") {
-        message.duration_ms = Number(step.duration_ms) || 1000;
-      }
-      await sendCommand(message);
+      await sendCommand({
+        cmd: "test_step",
+        step: testStep,
+        workflow_step: readWorkflowStepsFromState()[index],
+      });
+    } catch (err) {
+      log("error", err.message);
+    }
+    return;
+  }
+
+  if (target.classList.contains("step-test-window")) {
+    const index = Number(target.dataset.index);
+    const step = state.workflowSteps[index];
+    if (!step || step.type !== "focus_window") return;
+    try {
+      await testFocusWindowStep(step);
+    } catch (err) {
+      log("error", err.message);
+    }
+    return;
+  }
+
+  if (target.classList.contains("step-test-hotkey")) {
+    const index = Number(target.dataset.index);
+    const step = state.workflowSteps[index];
+    if (!step || step.type !== "send_hotkey") return;
+    try {
+      await testHotkeyStep(step);
     } catch (err) {
       log("error", err.message);
     }
   }
 });
 
+els.addStepBtn.addEventListener("click", () => {
+  if (state.running) return;
+  const type = els.insertStepType.value;
+  if (!type) return;
+  state.workflowSteps.push(createStep(type, state.config));
+  recalcTotalMs();
+  updateControls();
+});
+
+els.saveGroupBtn.addEventListener("click", async () => {
+  try {
+    const name = els.groupName.value.trim();
+    if (!name) {
+      log("warn", "请输入动作组名称");
+      return;
+    }
+    await saveConfigSilently();
+    const response = await sendCommand({
+      cmd: "save_action_group",
+      name,
+      workflow_steps: readWorkflowStepsFromState(),
+    });
+    if (response.event === "error") {
+      throw new Error(response.message || "保存动作组失败");
+    }
+  } catch (err) {
+    log("error", err.message);
+  }
+});
+
+els.openGroupBtn.addEventListener("click", async () => {
+  try {
+    const name = els.groupSelect.value;
+    if (!name) {
+      log("warn", "请选择要打开的动作组");
+      return;
+    }
+    const response = await sendCommand({ cmd: "load_action_group", name });
+    if (response.event === "error") {
+      throw new Error(response.message || "打开动作组失败");
+    }
+  } catch (err) {
+    log("error", err.message);
+  }
+});
+
+els.groupSelect.addEventListener("change", updateToolbarState);
+
+INSERT_OPTIONS.forEach((opt) => {
+  const option = document.createElement("option");
+  option.value = opt.type;
+  option.textContent = opt.label;
+  els.insertStepType.appendChild(option);
+});
+
+els.simulateCut.addEventListener("change", recalcTotalMs);
+
 [
-  els.retractMs,
-  els.extendMs,
-  els.cutWaitMs,
-  els.relayPulseMs,
-  els.beforeSendMs,
-  els.afterFocusMs,
-  els.afterHotkeyMs,
-  els.simulateCut,
   els.autoLoop,
   els.loopIntervalMs,
 ].forEach((el) => {
@@ -718,6 +1105,7 @@ els.clearLogBtn.addEventListener("click", () => {
 });
 
 window.cutppaper.onBackendEvent(handleBackendEvent);
+initStepDragDrop();
 updateControls();
 recalcTotalMs();
 

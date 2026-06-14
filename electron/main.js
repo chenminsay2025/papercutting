@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
 const readline = require("readline");
@@ -114,10 +114,10 @@ function sendCommand(message) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 760,
-    height: 620,
-    minWidth: 680,
-    minHeight: 520,
+    width: 820,
+    height: 920,
+    minWidth: 720,
+    minHeight: 760,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -182,4 +182,28 @@ ipcMain.handle("restore-focus", async () => {
 
 ipcMain.handle("backend-ready", async () => {
   return pythonReady;
+});
+
+ipcMain.handle("show-action-dialog", async (_event, options) => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return "abort";
+  }
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  mainWindow.show();
+  mainWindow.focus();
+
+  const result = await dialog.showMessageBox(mainWindow, {
+    type: "warning",
+    title: options?.title || "需要确认",
+    message: options?.message || "步骤执行出现问题",
+    detail: options?.detail || "",
+    buttons: ["重试", "跳过此步", "停止流程"],
+    defaultId: 0,
+    cancelId: 2,
+    noLink: true,
+  });
+
+  return ["retry", "skip", "abort"][result.response] || "abort";
 });

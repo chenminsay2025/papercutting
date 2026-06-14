@@ -46,7 +46,7 @@ def _find_window(title_keyword: str):
         sample_text = "、".join(samples) if samples else "（无可见窗口）"
         raise RuntimeError(
             f"未找到窗口，关键字: {title_keyword}。"
-            f"请修改侧边栏「窗口关键字」后点「测试窗口」。"
+            f"请修改步骤中的窗口关键字后点「窗」测试。"
             f"可见窗口示例: {sample_text}"
         )
     return matches[0]
@@ -153,6 +153,24 @@ def send_hotkey(hotkey: str) -> None:
     import keyboard
 
     keyboard.send(hotkey)
+
+
+def press_hotkey_step(hotkey: str, delay_before_ms: int = 0, delay_after_ms: int = 0) -> None:
+    if delay_before_ms > 0:
+        time.sleep(delay_before_ms / 1000.0)
+    send_hotkey(hotkey)
+    if delay_after_ms > 0:
+        time.sleep(delay_after_ms / 1000.0)
+
+
+def focus_window_step(window_title_contains: str, focus_timeout_ms: int) -> str:
+    import win32gui
+
+    hwnd, title = _find_window(window_title_contains)
+    _force_foreground(hwnd)
+    if not _wait_foreground(hwnd, focus_timeout_ms):
+        raise RuntimeError(f"无法激活窗口「{title}」")
+    return title
 
 
 def send_cut_job(

@@ -32,9 +32,30 @@
 
           <div class="step-editor-header">
             <span class="step-editor-title">执行步骤</span>
-            <span class="step-editor-hint">勾选启用 · 可插入/删除 · 支持等待</span>
+            <span class="step-editor-hint">拖拽排序 · 参数逐步设置 · 可保存动作组</span>
           </div>
           <div class="step-editor" id="stepEditor"></div>
+          <div class="step-toolbar" id="stepToolbar">
+            <div class="step-toolbar-row">
+              <label class="toolbar-field">
+                添加
+                <select id="insertStepType"></select>
+              </label>
+              <button id="addStepBtn" type="button" class="btn btn-secondary btn-xs">添加步骤</button>
+            </div>
+            <div class="step-toolbar-row step-toolbar-groups">
+              <label class="toolbar-field toolbar-grow">
+                动作组
+                <input id="groupName" type="text" placeholder="名称，如：标准切割" maxlength="64" />
+              </label>
+              <button id="saveGroupBtn" type="button" class="btn btn-secondary btn-xs">保存</button>
+              <label class="toolbar-field toolbar-grow">
+                已保存
+                <select id="groupSelect"><option value="">— 选择 —</option></select>
+              </label>
+              <button id="openGroupBtn" type="button" class="btn btn-primary btn-xs">打开</button>
+            </div>
+          </div>
 
           <div class="hero-status">
             <div class="hero-row">
@@ -57,7 +78,7 @@
           </div>
 
           <div class="test-section">
-            <div class="test-hint">步骤右侧「测」按钮可单步测试；时序在右侧配置。</div>
+            <div class="test-hint">每步最多两行；拖拽时蓝色插入线指示新位置。</div>
           </div>
         </section>
 
@@ -85,31 +106,11 @@
                   <button id="refreshPortsBtn" type="button" class="btn btn-secondary btn-xs">刷新</button>
                   <button id="connectBtn" type="button" class="btn btn-primary btn-xs">连接</button>
                   <button id="disconnectBtn" type="button" class="btn btn-secondary btn-xs">断开</button>
+                  <button id="saveConfigBtn" type="button" class="btn btn-secondary btn-xs">保存</button>
                 </div>
               </div>
             </div>
           </section>
-
-          <details class="panel panel-compact" open>
-            <summary>时序 (ms)</summary>
-            <div class="field-grid">
-              <label>缩回<input id="retractMs" type="number" min="0" step="100" /></label>
-              <label>伸出<input id="extendMs" type="number" min="0" step="100" /></label>
-              <label>切割<input id="cutWaitMs" type="number" min="0" step="100" /></label>
-              <label>脉冲<input id="relayPulseMs" type="number" min="50" step="10" /></label>
-              <label class="full">窗口关键字<input id="windowKeyword" type="text" placeholder="标题包含此文字即可" title="切割软件窗口标题中的任意片段" /></label>
-              <label>发送热键<input id="sendHotkey" type="text" placeholder="ctrl+p" title="激活窗口后发送的快捷键" /></label>
-              <label class="full cut-timing-hint">切割热键时序（激活 → 获焦 → 按热键 → 回本项目）</label>
-              <label>焦点超时 (ms)<input id="beforeSendMs" type="number" min="0" step="100" title="① 激活目标窗口后，最多等待多久以获得焦点。不必等满，获焦即进入下一步；超时仍无焦点则报错。" /></label>
-              <label>获焦后延迟 (ms)<input id="afterFocusMs" type="number" min="0" step="50" title="② 已获得焦点后、按下热键前的固定等待。给切割软件反应时间。" /></label>
-              <label>热键后延迟 (ms)<input id="afterHotkeyMs" type="number" min="0" step="50" title="③ 热键发送完成后、切回本程序前的固定等待。给切割软件处理命令的时间。" /></label>
-              <div class="cut-test-row">
-                <button id="testWindowBtn" type="button" class="btn btn-secondary btn-xs">测试窗口</button>
-                <button id="testHotkeyBtn" type="button" class="btn btn-secondary btn-xs">测试热键</button>
-              </div>
-            </div>
-            <button id="saveConfigBtn" type="button" class="btn btn-secondary btn-xs full-width">保存</button>
-          </details>
 
           <section class="panel panel-compact log-panel">
             <div class="log-header">

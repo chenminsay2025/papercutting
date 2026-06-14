@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld("cutppaper", {
   yieldFocus: () => ipcRenderer.invoke("yield-focus"),
   restoreFocus: () => ipcRenderer.invoke("restore-focus"),
   isBackendReady: () => ipcRenderer.invoke("backend-ready"),
+  showActionDialog: (options) => ipcRenderer.invoke("show-action-dialog", options),
   onBackendEvent: (callback) => {
     const listener = (_event, payload) => callback(payload);
     ipcRenderer.on("backend-event", listener);

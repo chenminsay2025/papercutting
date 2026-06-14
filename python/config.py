@@ -10,7 +10,8 @@ from typing import Any
 STEP_TYPES = (
     "retract",
     "pulse_a",
-    "send_cut",
+    "focus_window",
+    "send_hotkey",
     "cut_wait",
     "extend",
     "pulse_b",
@@ -20,7 +21,8 @@ STEP_TYPES = (
 STEP_TYPE_LABELS: dict[str, str] = {
     "retract": "伸缩杆缩回",
     "pulse_a": "继续 (继电器A)",
-    "send_cut": "发送切割 Ctrl+P",
+    "focus_window": "获取窗口",
+    "send_hotkey": "发送快捷键",
     "cut_wait": "等待切割",
     "extend": "伸缩杆伸出",
     "pulse_b": "原点 (继电器B)",
@@ -28,13 +30,100 @@ STEP_TYPE_LABELS: dict[str, str] = {
 }
 
 DEFAULT_WORKFLOW_STEPS: list[dict[str, Any]] = [
-    {"id": "step-retract", "type": "retract", "enabled": True, "label": "伸缩杆缩回"},
-    {"id": "step-pulse-a", "type": "pulse_a", "enabled": True, "label": "继续 (继电器A)"},
-    {"id": "step-send-cut", "type": "send_cut", "enabled": True, "label": "发送切割 Ctrl+P"},
-    {"id": "step-cut-wait", "type": "cut_wait", "enabled": True, "label": "等待切割"},
-    {"id": "step-extend", "type": "extend", "enabled": True, "label": "伸缩杆伸出"},
-    {"id": "step-pulse-b", "type": "pulse_b", "enabled": True, "label": "原点 (继电器B)"},
+    {"id": "step-retract", "type": "retract", "enabled": True, "label": "伸缩杆缩回", "duration_ms": 3000},
+    {"id": "step-pulse-a", "type": "pulse_a", "enabled": True, "label": "继续 (继电器A)", "duration_ms": 200},
+    {
+        "id": "step-focus",
+        "type": "focus_window",
+        "enabled": True,
+        "label": "获取窗口",
+        "window_keyword": "Cutting Master",
+        "focus_timeout_ms": 800,
+    },
+    {
+        "id": "step-hotkey",
+        "type": "send_hotkey",
+        "enabled": True,
+        "label": "发送快捷键",
+        "hotkey": "ctrl+p",
+        "delay_before_ms": 100,
+        "delay_after_ms": 200,
+    },
+    {"id": "step-cut-wait", "type": "cut_wait", "enabled": True, "label": "等待切割", "duration_ms": 6000},
+    {"id": "step-extend", "type": "extend", "enabled": True, "label": "伸缩杆伸出", "duration_ms": 3000},
+    {"id": "step-pulse-b", "type": "pulse_b", "enabled": True, "label": "原点 (继电器B)", "duration_ms": 200},
 ]
+
+FOCUS_WINDOW_DEFAULTS: dict[str, Any] = {
+    "window_keyword": "Cutting Master",
+    "focus_timeout_ms": 800,
+}
+
+SEND_HOTKEY_DEFAULTS: dict[str, Any] = {
+    "hotkey": "ctrl+p",
+    "delay_before_ms": 100,
+    "delay_after_ms": 200,
+}
+
+STEP_DURATION_DEFAULTS: dict[str, int] = {
+    "retract": 3000,
+    "extend": 3000,
+    "cut_wait": 6000,
+    "pulse_a": 200,
+    "pulse_b": 200,
+    "wait": 1000,
+}
+
+LEGACY_TIMING_KEYS: dict[str, str] = {
+    "retract": "retract",
+    "extend": "extend",
+    "cut_wait": "cut_wait",
+    "pulse_a": "relay_pulse",
+    "pulse_b": "relay_pulse",
+}
+
+SEND_CUT_DEFAULTS: dict[str, Any] = {
+    **FOCUS_WINDOW_DEFAULTS,
+    **SEND_HOTKEY_DEFAULTS,
+    "send_hotkey": "ctrl+p",
+    "before_send_ms": 800,
+    "after_focus_ms": 100,
+    "after_hotkey_ms": 200,
+}
+
+
+def _expand_legacy_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    expanded: list[dict[str, Any]] = []
+    for raw in steps:
+        if str(raw.get("type", "")).strip() != "send_cut":
+            expanded.append(raw)
+            continue
+        base_id = str(raw.get("id") or f"step-legacy-{len(expanded)}")
+        expanded.append(
+            {
+                "id": f"{base_id}-focus",
+                "type": "focus_window",
+                "enabled": raw.get("enabled", True),
+                "label": "获取窗口",
+                "window_keyword": raw.get("window_keyword"),
+                "focus_timeout_ms": raw.get(
+                    "before_send_ms",
+                    raw.get("before_send_keys", raw.get("focus_timeout_ms", 800)),
+                ),
+            }
+        )
+        expanded.append(
+            {
+                "id": f"{base_id}-hotkey",
+                "type": "send_hotkey",
+                "enabled": raw.get("enabled", True),
+                "label": "发送快捷键",
+                "hotkey": raw.get("hotkey") or raw.get("send_hotkey"),
+                "delay_before_ms": raw.get("after_focus_ms", raw.get("delay_before_ms", 100)),
+                "delay_after_ms": raw.get("after_hotkey_ms", raw.get("delay_after_ms", 200)),
+            }
+        )
+    return expanded
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "serial": {
@@ -103,13 +192,21 @@ def validate_config(config: dict[str, Any]) -> list[str]:
         )
 
     cm = config.get("cutting_master", {})
-    keyword = str(cm.get("window_title_contains", "")).strip()
-    if len(keyword) < 2:
-        errors.append("窗口关键字 window_title_contains 至少需要 2 个字符")
-
-    hotkey = str(cm.get("send_hotkey", "")).strip()
-    if not hotkey:
-        errors.append("热键 send_hotkey 不能为空")
+    steps_for_cm = config.get("workflow_steps") or []
+    focus_steps = [step for step in steps_for_cm if step.get("type") == "focus_window"]
+    hotkey_steps = [step for step in steps_for_cm if step.get("type") == "send_hotkey"]
+    if focus_steps:
+        keyword = str(focus_steps[0].get("window_keyword") or cm.get("window_title_contains", "")).strip()
+    else:
+        keyword = str(cm.get("window_title_contains", "")).strip()
+    if hotkey_steps:
+        hotkey = str(hotkey_steps[0].get("hotkey") or cm.get("send_hotkey", "")).strip()
+    else:
+        hotkey = str(cm.get("send_hotkey", "")).strip()
+    if focus_steps and len(keyword) < 2:
+        errors.append("获取窗口步骤 window_keyword 至少需要 2 个字符")
+    if hotkey_steps and not hotkey:
+        errors.append("发送快捷键步骤 hotkey 不能为空")
 
     app_cfg = config.get("app", {})
     if not isinstance(app_cfg.get("simulation_mode"), bool):
@@ -149,8 +246,12 @@ def validate_config(config: dict[str, Any]) -> list[str]:
                 seen_ids.add(step_id)
 
             step_type = str(step.get("type", "")).strip()
+            if step_type == "send_cut":
+                errors.append(f"{prefix} type 已废弃，请改用 focus_window + send_hotkey")
+                continue
             if step_type not in STEP_TYPES:
                 errors.append(f"{prefix} type 无效: {step_type}")
+                continue
 
             if not isinstance(step.get("enabled"), bool):
                 errors.append(f"{prefix} enabled 必须是布尔值")
@@ -159,12 +260,88 @@ def validate_config(config: dict[str, Any]) -> list[str]:
             if not label:
                 errors.append(f"{prefix} label 不能为空")
 
-            if step_type == "wait":
+            if step_type == "focus_window":
+                window_keyword = str(step.get("window_keyword", "")).strip()
+                if len(window_keyword) < 2:
+                    errors.append(f"{prefix} window_keyword 至少需要 2 个字符")
+                focus_timeout_ms = step.get("focus_timeout_ms")
+                if not isinstance(focus_timeout_ms, int) or not (0 <= focus_timeout_ms <= MAX_TIMING_MS):
+                    errors.append(f"{prefix} focus_timeout_ms 必须是 0–{MAX_TIMING_MS} 的整数")
+            elif step_type == "send_hotkey":
+                hotkey_value = str(step.get("hotkey", "")).strip()
+                if not hotkey_value:
+                    errors.append(f"{prefix} hotkey 不能为空")
+                for field in ("delay_before_ms", "delay_after_ms"):
+                    value = step.get(field)
+                    if not isinstance(value, int) or not (0 <= value <= MAX_TIMING_MS):
+                        errors.append(f"{prefix} {field} 必须是 0–{MAX_TIMING_MS} 的整数")
+            elif step_type in STEP_DURATION_DEFAULTS:
                 duration_ms = step.get("duration_ms")
-                if not isinstance(duration_ms, int) or not (0 <= duration_ms <= MAX_TIMING_MS):
+                if step_type in ("pulse_a", "pulse_b"):
+                    valid = (
+                        isinstance(duration_ms, int)
+                        and MIN_RELAY_PULSE_MS <= duration_ms <= MAX_RELAY_PULSE_MS
+                    )
+                    if not valid:
+                        errors.append(
+                            f"{prefix} duration_ms 必须是 {MIN_RELAY_PULSE_MS}–{MAX_RELAY_PULSE_MS} 的整数"
+                        )
+                elif not isinstance(duration_ms, int) or not (0 <= duration_ms <= MAX_TIMING_MS):
                     errors.append(f"{prefix} duration_ms 必须是 0–{MAX_TIMING_MS} 的整数")
 
     return errors
+
+
+def normalize_workflow_steps(
+    steps: list[dict[str, Any]] | None,
+    config: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    config = config or {}
+    timings = config.get("timings_ms", {})
+    cm = config.get("cutting_master", {})
+    source = steps if isinstance(steps, list) and steps else deepcopy(DEFAULT_WORKFLOW_STEPS)
+    source = _expand_legacy_steps(source)
+    normalized: list[dict[str, Any]] = []
+
+    for raw in source:
+        step_type = str(raw.get("type", "")).strip()
+        if step_type not in STEP_TYPES:
+            continue
+        label = str(raw.get("label") or STEP_TYPE_LABELS.get(step_type, step_type)).strip()
+        item: dict[str, Any] = {
+            "id": str(raw.get("id") or f"step-{len(normalized)}"),
+            "type": step_type,
+            "enabled": raw.get("enabled") is not False,
+            "label": label,
+        }
+        if step_type == "focus_window":
+            item["window_keyword"] = str(
+                raw.get("window_keyword") or cm.get("window_title_contains") or FOCUS_WINDOW_DEFAULTS["window_keyword"]
+            ).strip()
+            item["focus_timeout_ms"] = int(
+                raw.get(
+                    "focus_timeout_ms",
+                    raw.get("before_send_ms", timings.get("before_send_keys", FOCUS_WINDOW_DEFAULTS["focus_timeout_ms"])),
+                )
+            )
+        elif step_type == "send_hotkey":
+            item["hotkey"] = str(
+                raw.get("hotkey") or raw.get("send_hotkey") or cm.get("send_hotkey") or SEND_HOTKEY_DEFAULTS["hotkey"]
+            ).strip()
+            item["delay_before_ms"] = int(
+                raw.get("delay_before_ms", raw.get("after_focus_ms", timings.get("after_focus_ms", SEND_HOTKEY_DEFAULTS["delay_before_ms"])))
+            )
+            item["delay_after_ms"] = int(
+                raw.get("delay_after_ms", raw.get("after_hotkey_ms", timings.get("after_hotkey_ms", SEND_HOTKEY_DEFAULTS["delay_after_ms"])))
+            )
+        elif step_type in STEP_DURATION_DEFAULTS:
+            legacy_key = LEGACY_TIMING_KEYS.get(step_type, step_type)
+            item["duration_ms"] = int(
+                raw.get("duration_ms", timings.get(legacy_key, STEP_DURATION_DEFAULTS[step_type]))
+            )
+        normalized.append(item)
+
+    return normalized or deepcopy(DEFAULT_WORKFLOW_STEPS)
 
 
 def load_config() -> dict[str, Any]:
@@ -183,6 +360,14 @@ def load_config() -> dict[str, Any]:
                 pass
     if not config.get("workflow_steps"):
         config["workflow_steps"] = deepcopy(DEFAULT_WORKFLOW_STEPS)
+    config["workflow_steps"] = normalize_workflow_steps(config.get("workflow_steps"), config)
+    first_focus = next((step for step in config["workflow_steps"] if step.get("type") == "focus_window"), None)
+    first_hotkey = next((step for step in config["workflow_steps"] if step.get("type") == "send_hotkey"), None)
+    config.setdefault("cutting_master", {})
+    if first_focus:
+        config["cutting_master"]["window_title_contains"] = first_focus.get("window_keyword", "")
+    if first_hotkey:
+        config["cutting_master"]["send_hotkey"] = first_hotkey.get("hotkey", "ctrl+p")
     return config
 
 

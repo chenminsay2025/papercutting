@@ -1,6 +1,6 @@
 {
   "serial": {
-    "port": "COM11",
+    "port": "SIM（模拟）",
     "baudrate": 115200,
     "timeout_ms": 2000
   },
@@ -22,7 +22,7 @@
     "button_b": "继续"
   },
   "app": {
-    "simulation_mode": false,
+    "simulation_mode": true,
     "auto_loop": false,
     "loop_interval_ms": 100,
     "start_hotkey": "alt+right"
@@ -39,7 +39,7 @@
     {
       "id": "step-1781494663292-346je",
       "type": "confirm_dialog",
-      "enabled": false,
+      "enabled": true,
       "label": "弹窗确认",
       "note": "确定纸张已经放置好。",
       "delay_ms": 500,
@@ -58,8 +58,8 @@
       "id": "step-focus",
       "type": "focus_window",
       "enabled": true,
-      "label": "获取窗口",
-      "note": "获取其它窗口程序并聚焦",
+      "label": "激活窗口",
+      "note": "激活目标窗口并聚焦",
       "delay_ms": 800,
       "window_keyword": "记事本"
     },

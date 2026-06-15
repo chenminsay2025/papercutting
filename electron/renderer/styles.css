@@ -196,6 +196,8 @@ input[type="number"] {
   height: 28px;
   border-radius: 7px;
   flex-shrink: 0;
+  object-fit: contain;
+  background: #000;
 }
 
 .logo {
@@ -1112,6 +1114,8 @@ td.col-actions {
 .about-icon {
   flex-shrink: 0;
   border-radius: 8px;
+  object-fit: contain;
+  background: #000;
 }
 
 .about-meta {

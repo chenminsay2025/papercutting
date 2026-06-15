@@ -20,6 +20,16 @@ const MAIN_WINDOW_DEFAULTS = {
   minHeight: 640,
 };
 
+function resolveAppIconPath() {
+  const assetsDir = path.join(__dirname, "assets");
+  const icoPath = path.join(assetsDir, "icon.ico");
+  const pngPath = path.join(assetsDir, "icon.png");
+  if (process.platform === "win32" && fs.existsSync(icoPath)) {
+    return icoPath;
+  }
+  return pngPath;
+}
+
 let saveMainWindowStateTimer = null;
 let registeredStartHotkey = "";
 
@@ -70,7 +80,7 @@ function openLogWindow() {
     return;
   }
 
-  const iconPath = path.join(__dirname, "assets", "icon.png");
+  const iconPath = resolveAppIconPath();
   logWindow = new BrowserWindow({
     width: 560,
     height: 420,
@@ -403,7 +413,7 @@ function attachWindowFocusState(win) {
 }
 
 function createWindow() {
-  const iconPath = path.join(__dirname, "assets", "icon.png");
+  const iconPath = resolveAppIconPath();
   const savedState = loadMainWindowState();
   const windowOptions = {
     width: savedState.width,

@@ -39,7 +39,7 @@ const HOTKEY_KEY_ALIASES = {
 const STEP_TYPE_META = {
   retract: { label: "伸缩杆缩回", testStep: "retract" },
   pulse_a: { testStep: "pulse_a" },
-  focus_window: { label: "获取窗口", testStep: "focus_window" },
+  focus_window: { label: "激活窗口", testStep: "focus_window" },
   send_hotkey: { label: "按键操作", testStep: "send_hotkey" },
   restore_app: { label: "回到窗口", testStep: "restore_app" },
   extend: { label: "伸缩杆伸出", testStep: "extend" },
@@ -277,7 +277,7 @@ function expandLegacySteps(steps) {
         ...step,
         id: `${step.id || newStepId()}-focus`,
         type: "focus_window",
-        label: "获取窗口",
+        label: "激活窗口",
         window_keyword: step.window_keyword,
         delay_ms: step.before_send_ms ?? step.focus_timeout_ms ?? step.delay_ms ?? 800,
       });

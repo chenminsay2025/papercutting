@@ -20,7 +20,7 @@
       "id": "step-focus",
       "type": "focus_window",
       "enabled": true,
-      "label": "获取窗口",
+      "label": "激活窗口",
       "window_keyword": "Cutting Master",
       "focus_timeout_ms": 800
     },

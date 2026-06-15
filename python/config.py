@@ -22,7 +22,7 @@ STEP_TYPES = (
 STEP_TYPE_LABELS: dict[str, str] = {
     "retract": "伸缩杆缩回",
     "pulse_a": "模拟【按键B】",
-    "focus_window": "获取窗口",
+    "focus_window": "激活窗口",
     "send_hotkey": "按键操作",
     "restore_app": "回到窗口",
     "extend": "伸缩杆伸出",
@@ -69,7 +69,7 @@ DEFAULT_WORKFLOW_STEPS: list[dict[str, Any]] = [
         "id": "step-focus",
         "type": "focus_window",
         "enabled": True,
-        "label": "获取窗口",
+        "label": "激活窗口",
         "window_keyword": "Cutting Master",
         "delay_ms": 800,
     },
@@ -178,7 +178,7 @@ def _expand_legacy_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "id": f"{base_id}-focus",
                 "type": "focus_window",
                 "enabled": raw.get("enabled", True),
-                "label": "获取窗口",
+                "label": "激活窗口",
                 "window_keyword": raw.get("window_keyword"),
                 "delay_ms": raw.get(
                     "before_send_ms",
@@ -282,7 +282,7 @@ def validate_config(config: dict[str, Any]) -> list[str]:
     else:
         hotkey = str(cm.get("send_hotkey", "")).strip()
     if focus_steps and len(keyword) < 2:
-        errors.append("获取窗口步骤 window_keyword 至少需要 2 个字符")
+        errors.append("激活窗口步骤 window_keyword 至少需要 2 个字符")
     if hotkey_steps and not hotkey:
         errors.append("按键操作步骤 hotkey 不能为空")
 

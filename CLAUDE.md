@@ -89,6 +89,8 @@ Text-based, line-delimited with `\r\n`. Commands are case-insensitive (uppercase
 | PA4 | LED retract | Output |
 | PA5 | LED extend | Output |
 | PA6 | LED serial/COM status | Output |
+| PA7 | Button retract | Input (pull-up, active low) |
+| PA8 | Button extend | Input (pull-up, active low) |
 | PA9 | USART1 TX (USB-TTL) | AF output |
 | PA10 | USART1 RX (USB-TTL) | Input |
 
@@ -98,6 +100,7 @@ Text-based, line-delimited with `\r\n`. Commands are case-insensitive (uppercase
 - `motor.c` — H-bridge relays (jumpers H): retract IN1 only; extend IN2 only; stop both released; 80ms before reverse.
 - `led.c` — PA4/PA5 motor status LEDs; PA6 COM LED (fast blink offline, PWM breathing when comm active).
 - `relay.c` — Pulse-based relay control with tick-based auto-off timing.
+- `buttons.c` — PA7/PA8 physical buttons: hold to retract/extend, release to stop; debounced, coexists with serial motor commands.
 - `board.h` — All pin definitions consolidated here.
 - `usart_serial.c` — USART1 at 115200 baud, line-buffered receive.
 
@@ -107,7 +110,7 @@ Build with Keil5: open `firmware/CutPPaper.uvprojx`, flash via ST-LINK.
 
 Runtime configuration at project root, deep-merged with defaults defined in `config.py`:
 - `serial` — Port, baudrate, timeout
-- `timings_ms` — Duration for each phase (retract, extend, cut_wait, relay_pulse, before_send_keys)
+- `timings_ms` — Duration for each phase (retract, extend, relay_pulse, before_send_keys)
 - `cutting_master` — Window title keyword to find, hotkey to send
 - `app` — `simulation_mode` (use mock STM32), `simulate_cut` (skip actual Cutting Master 4 hotkey)
 

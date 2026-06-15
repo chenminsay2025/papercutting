@@ -2,6 +2,7 @@
 #include "board.h"
 #include "motor.h"
 #include "relay.h"
+#include "buttons.h"
 #include "usart_serial.h"
 #include "protocol.h"
 #include "led.h"
@@ -13,6 +14,7 @@ int main(void)
 	Board_Init();
 	Relay_Init();
 	Led_Init();
+	Button_Init();
 	Serial_Init();
 	Protocol_Init();
 
@@ -22,6 +24,7 @@ int main(void)
 	{
 		Protocol_Poll();
 		Protocol_CheckCommTimeout();
+		Button_Tick();
 		Relay_Tick();
 		Led_Tick();
 		Board_FeedWatchdog();

@@ -588,6 +588,7 @@
             <g data-sch-layer="wire-motor part-u1 part-u2 part-relay">
               <text x="430" y="259" text-anchor="end">PA0→IN1</text>
               <text x="430" y="279" text-anchor="end">PA1→IN2</text>
+              <text x="430" y="439" text-anchor="end">PA7→SW3</text>
               <text x="810" y="302" text-anchor="end">K1</text>
               <text x="810" y="322" text-anchor="end">K2</text>
               <text x="1000" y="288">COM1←+24V</text>
@@ -624,12 +625,16 @@
               <text x="860" y="548" class="sch-note">各串 330Ω→GND</text>
             </g>
             <g data-sch-layer="wire-btn part-sw">
+              <use href="#sym-button" x="1120" y="430"/>
+              <text x="1120" y="416" text-anchor="middle" class="sch-ref">SW3</text>
+              <text x="1120" y="448" text-anchor="middle" class="sch-val">伸缩切换</text>
+              <text x="1120" y="464" text-anchor="middle" class="sch-note">PA7·3s交替</text>
               <use href="#sym-button" x="1120" y="500"/>
               <text x="1120" y="486" text-anchor="middle" class="sch-ref">SW1</text>
               <text x="1120" y="518" text-anchor="middle" class="sch-val">继续</text>
-              <use href="#sym-button" x="1120" y="520"/>
-              <text x="1120" y="506" text-anchor="middle" class="sch-ref">SW2</text>
-              <text x="1120" y="538" text-anchor="middle" class="sch-val">原点</text>
+              <use href="#sym-button" x="1120" y="540"/>
+              <text x="1120" y="526" text-anchor="middle" class="sch-ref">SW2</text>
+              <text x="1120" y="558" text-anchor="middle" class="sch-val">原点</text>
             </g>
           </g>
 
@@ -680,14 +685,15 @@
           <tr><td>15</td><td>STM32 PA4</td><td>D1 缩回 LED（经 330Ω）</td><td style="color:#f59e0b">琥珀</td><td>缩回时亮</td></tr>
           <tr><td>16</td><td>STM32 PA5</td><td>D2 伸出 LED（经 330Ω）</td><td style="color:#22c55e">绿</td><td>伸出时亮</td></tr>
           <tr><td>17</td><td>STM32 PA6</td><td>D3 串口 LED（经 330Ω）</td><td style="color:#2563eb">蓝</td><td>未连接快闪；已连接呼吸慢闪</td></tr>
-          <tr><td>18</td><td>四路继电器 DC+</td><td>12V 电源正极</td><td style="color:#dc2626">红</td><td>12V 光耦模块；5V 模块接 5V；勿接 24V</td></tr>
-          <tr><td>19</td><td>四路继电器 DC-</td><td>系统 GND</td><td style="color:#1f2937">黑</td><td>与 STM32、TTL、ST-LINK 共地</td></tr>
-          <tr><td>20</td><td>跳线 S1~S4</td><td>插上跳线帽</td><td style="color:#64748b">—</td><td>高电平触发 IN1~IN4</td></tr>
-          <tr><td>21</td><td>STM32 PA2</td><td>继电器 IN3 (K3)</td><td style="color:#059669">绿</td><td>脉冲 →「继续」</td></tr>
-          <tr><td>22</td><td>COM3 + NO3</td><td>「继续」按钮</td><td style="color:#64748b">灰</td><td>并联；NC3 不接</td></tr>
-          <tr><td>23</td><td>STM32 PA3</td><td>继电器 IN4 (K4)</td><td style="color:#059669">绿</td><td>脉冲 →「原点」</td></tr>
-          <tr><td>24</td><td>COM4 + NO4</td><td>「原点」按钮</td><td style="color:#64748b">灰</td><td>并联；NC4 不接</td></tr>
-          <tr><td>25</td><td>24V 电源 GND</td><td>共地总线</td><td style="color:#1f2937">黑</td><td>所有模块 GND 汇到一点</td></tr>
+          <tr><td>18</td><td>STM32 PA7</td><td>伸缩切换按钮 → GND</td><td style="color:#64748b">灰</td><td>按一次缩回 3s，再按伸出 3s，交替</td></tr>
+          <tr><td>19</td><td>四路继电器 DC+</td><td>12V 电源正极</td><td style="color:#dc2626">红</td><td>12V 光耦模块；5V 模块接 5V；勿接 24V</td></tr>
+          <tr><td>20</td><td>四路继电器 DC-</td><td>系统 GND</td><td style="color:#1f2937">黑</td><td>与 STM32、TTL、ST-LINK 共地</td></tr>
+          <tr><td>21</td><td>跳线 S1~S4</td><td>插上跳线帽</td><td style="color:#64748b">—</td><td>高电平触发 IN1~IN4</td></tr>
+          <tr><td>22</td><td>STM32 PA2</td><td>继电器 IN3 (K3)</td><td style="color:#059669">绿</td><td>脉冲 →「继续」</td></tr>
+          <tr><td>23</td><td>COM3 + NO3</td><td>「继续」按钮</td><td style="color:#64748b">灰</td><td>并联；NC3 不接</td></tr>
+          <tr><td>24</td><td>STM32 PA3</td><td>继电器 IN4 (K4)</td><td style="color:#059669">绿</td><td>脉冲 →「原点」</td></tr>
+          <tr><td>25</td><td>COM4 + NO4</td><td>「原点」按钮</td><td style="color:#64748b">灰</td><td>并联；NC4 不接</td></tr>
+          <tr><td>26</td><td>24V 电源 GND</td><td>共地总线</td><td style="color:#1f2937">黑</td><td>所有模块 GND 汇到一点</td></tr>
         </table>
 
         <div class="detail-box">
@@ -697,6 +703,7 @@
             <li><span class="highlight">电压</span>：STM32 仅 3.3V；USB-TTL 拨 3.3V；24V 只接 COM1/COM2 电机触点</li>
             <li><span class="highlight">串口</span>：TX/RX 交叉（TTL TX→PA10，TTL RX←PA9），115200</li>
             <li><span class="highlight">电机 K1/K2</span>：COM1←24V+、COM2←GND；NO1+NC1→电机+、NO2→电机−；NC2 不接；停止时断电</li>
+            <li><span class="highlight">伸缩键 PA7</span>：单键接 GND；按一次缩回 3s，再按伸出 3s，交替</li>
             <li><span class="highlight">LED</span>：PA4 缩回、PA5 伸出、PA6 串口；各串 330Ω 到 GND</li>
             <li><span class="highlight">按钮 K3/K4</span>：PA2→IN3、PA3→IN4；COM3/NO3 继续、COM4/NO4 原点；NC3/NC4 不接</li>
             <li><span class="highlight">继电器 U4</span>：DC+→12V、DC-→GND；S1~S4 跳线插 H（光耦模块可能无声）</li>
@@ -789,13 +796,17 @@
             <text x="105" y="259" text-anchor="middle" fill="#065f46">PA3 → IN4 (K4 原点)</text>
             <line x1="180" y1="254" x2="200" y2="254" stroke="#059669" stroke-width="2"/>
 
-            <rect x="30" y="300" width="150" height="28" rx="6" fill="#dbeafe" stroke="#2563eb"/>
-            <text x="105" y="319" text-anchor="middle" fill="#1e40af">PA13 SWDIO</text>
-            <line x1="180" y1="314" x2="200" y2="314" stroke="#2563eb" stroke-width="2"/>
+            <rect x="30" y="280" width="150" height="28" rx="6" fill="#e2e8f0" stroke="#64748b"/>
+            <text x="105" y="299" text-anchor="middle" fill="#334155">PA7 → 伸缩切换键</text>
+            <line x1="180" y1="294" x2="200" y2="294" stroke="#64748b" stroke-width="2"/>
 
-            <rect x="30" y="340" width="150" height="28" rx="6" fill="#dbeafe" stroke="#2563eb"/>
-            <text x="105" y="359" text-anchor="middle" fill="#1e40af">PA14 SWCLK</text>
-            <line x1="180" y1="354" x2="200" y2="354" stroke="#2563eb" stroke-width="2"/>
+            <rect x="30" y="320" width="150" height="28" rx="6" fill="#dbeafe" stroke="#2563eb"/>
+            <text x="105" y="339" text-anchor="middle" fill="#1e40af">PA13 SWDIO</text>
+            <line x1="180" y1="334" x2="200" y2="334" stroke="#2563eb" stroke-width="2"/>
+
+            <rect x="30" y="360" width="150" height="28" rx="6" fill="#dbeafe" stroke="#2563eb"/>
+            <text x="105" y="379" text-anchor="middle" fill="#1e40af">PA14 SWCLK</text>
+            <line x1="180" y1="374" x2="200" y2="374" stroke="#2563eb" stroke-width="2"/>
           </g>
 
           <!-- 右侧引脚 -->
@@ -828,6 +839,7 @@
           <tr><td>PA6</td><td>输出</td><td>LED D3 串口状态</td><td style="color:#2563eb">蓝</td></tr>
           <tr><td>PA2</td><td>输出</td><td>四路继电器 IN3 / K3 → COM3/NO3 继续</td><td style="color:#059669">绿</td></tr>
           <tr><td>PA3</td><td>输出</td><td>四路继电器 IN4 / K4 → COM4/NO4 原点</td><td style="color:#059669">绿</td></tr>
+          <tr><td>PA7</td><td>输入</td><td>伸缩切换按钮 → GND（按一次缩回 3s，再按伸出 3s）</td><td style="color:#64748b">灰</td></tr>
           <tr><td>PA9/10</td><td>串口</td><td>USB-TTL 交叉连接</td><td style="color:#2563eb">蓝</td></tr>
           <tr><td>PA13/14</td><td>SWD</td><td>ST-LINK 烧录</td><td style="color:#2563eb">蓝</td></tr>
         </table>
@@ -938,17 +950,18 @@
 
           <g font-size="12" fill="#334155">
             <text x="460" y="420">固件逻辑（与继电器匹配）：</text>
-            <text x="460" y="442">PA0=1 PA1=1 → K1+K2 吸合 → 缩回</text>
+            <text x="460" y="442">PA0=1 PA1=0 → 仅 K1 吸合 → 缩回</text>
             <text x="460" y="464">PA0=0 PA1=1 → 仅 K2 吸合 → 伸出</text>
             <text x="460" y="486">PA0=0 PA1=0 → 释放 → 停止（断电）</text>
-            <text x="460" y="508" fill="#64748b">方向反了：对调电机正/负线</text>
+            <text x="460" y="508" fill="#64748b">PA7 单键：按一次缩回 3s，再按伸出 3s，交替</text>
           </g>
         </svg>
 
         <table class="pin-table">
           <tr><th>端子</th><th>接法</th><th>说明</th></tr>
-          <tr><td>IN1 (K1)</td><td>STM32 PA0</td><td>缩回时与 K2 同时吸合</td></tr>
+          <tr><td>IN1 (K1)</td><td>STM32 PA0</td><td>缩回时单独吸合</td></tr>
           <tr><td>IN2 (K2)</td><td>STM32 PA1</td><td>伸出时单独吸合</td></tr>
+          <tr><td>PA7</td><td>切换按钮 → GND</td><td>现场手动：每次 3 秒，缩回/伸出交替</td></tr>
           <tr><td>COM1</td><td>24V+</td><td>电机电源正极</td></tr>
           <tr><td>COM2</td><td>GND</td><td>电机电源负极</td></tr>
           <tr><td>NO1 + NC1</td><td>电机正极 (+)</td><td>并到同一接线点</td></tr>

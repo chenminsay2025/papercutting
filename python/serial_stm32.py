@@ -33,14 +33,23 @@ class Stm32Client:
 
     def connect(self) -> None:
         self.close()
-        self._ser = serial.Serial(
-            port=self.port,
-            baudrate=self.baudrate,
-            timeout=self.timeout,
-            write_timeout=self.timeout,
-        )
-        time.sleep(0.2)
-        self._drain_boot_messages()
+        try:
+            self._ser = serial.Serial(
+                port=self.port,
+                baudrate=self.baudrate,
+                timeout=self.timeout,
+                write_timeout=self.timeout,
+                rtscts=False,
+                dsrdtr=False,
+            )
+            # CH340 模块若 RTS 接 NRST，须避免 dtr=False,rts=True（会拉住复位无响应）
+            self._ser.dtr = True
+            self._ser.rts = True
+            time.sleep(0.35)
+            self._drain_boot_messages()
+        except Exception:
+            self.close()
+            raise
 
     def close(self) -> None:
         if self._ser is not None:

@@ -8,7 +8,15 @@ import time
 import traceback
 from typing import Any
 
-from action_groups import list_action_groups, load_action_group, save_action_group
+from action_groups import (
+    delete_action_group,
+    export_action_group,
+    export_saved_action_group,
+    import_action_group,
+    list_action_groups,
+    load_action_group,
+    save_action_group,
+)
 from config import load_config, save_config, validate_config
 from mock_stm32 import MockStm32Client
 from serial_stm32 import Stm32Client
@@ -62,7 +70,7 @@ class ControllerService:
         if self.client is not None:
             self.workflow.attach_client(self.client)
             return
-        if self.config.get("app", {}).get("simulation_mode", True):
+        if self.config.get("app", {}).get("simulation_mode", False):
             self.client = MockStm32Client(emit_log=self._log_from_mock)
             self._using_mock = True
         else:
@@ -86,7 +94,7 @@ class ControllerService:
             self._pending_client_refresh = True
             return
 
-        simulation = self.config.get("app", {}).get("simulation_mode", True)
+        simulation = self.config.get("app", {}).get("simulation_mode", False)
         if simulation != self._using_mock:
             with self._client_lock:
                 if self.client is not None:
@@ -158,11 +166,15 @@ class ControllerService:
                 return
 
             if cmd == "list_ports":
-                if self.config.get("app", {}).get("simulation_mode", True):
+                if "simulation_mode" in message:
+                    simulation = bool(message.get("simulation_mode"))
+                else:
+                    simulation = bool(self.config.get("app", {}).get("simulation_mode", False))
+                if simulation:
                     ports = MockStm32Client.list_ports()
                 else:
                     ports = Stm32Client.list_ports()
-                reply({"event": "ports", "ports": ports})
+                reply({"event": "ports", "ports": ports, "simulation": simulation})
                 return
 
             if cmd == "connect":
@@ -170,7 +182,7 @@ class ControllerService:
                     raise RuntimeError("流程运行中，无法连接/切换串口")
                 self._recreate_client_if_needed(force=True)
                 port = message.get("port") or self.config["serial"]["port"]
-                simulation = self.config.get("app", {}).get("simulation_mode", True)
+                simulation = self.config.get("app", {}).get("simulation_mode", False)
 
                 if simulation:
                     self.config.setdefault("app", {})["simulation_mode"] = True
@@ -196,8 +208,12 @@ class ControllerService:
                 with self._client_lock:
                     assert self.client is not None
                     self.client.port = port
-                    self.client.connect()
-                    response = self.client.ping()
+                    try:
+                        self.client.connect()
+                        response = self.client.ping()
+                    except Exception:
+                        self.client.close()
+                        raise
                 reply({"event": "connected", "port": port, "response": response, "simulation": False})
                 return
 
@@ -211,11 +227,14 @@ class ControllerService:
                 return
 
             if cmd == "start_cycle":
+                from workflow import _cycle_total_ms
+
                 self.workflow.start_cycle(self.config)
                 app_cfg = self.config.get("app", {})
                 reply(
                     {
                         "event": "cycle_started",
+                        "total_ms": _cycle_total_ms(self.config),
                         "auto_loop": bool(app_cfg.get("auto_loop", False)),
                         "loop_interval_ms": int(app_cfg.get("loop_interval_ms", 0)),
                     }
@@ -240,8 +259,32 @@ class ControllerService:
                 reply({"event": "test_done", "step": step})
                 return
 
+            if cmd == "restore_app_focus":
+                from cutting_master import restore_window
+
+                keyword = str(message.get("keyword") or "CutPPaper").strip()
+                title = restore_window(keyword)
+                reply({"event": "app_focus_restored", "title": title})
+                return
+
+            if cmd == "list_open_windows":
+                from cutting_master import list_open_windows
+
+                max_count = int(message.get("max_count", 100))
+                windows = list_open_windows(max_count)
+                reply({"event": "open_windows", "windows": windows})
+                return
+
+            if cmd == "restore_focus_ack":
+                request_id = str(message.get("request_id", "")).strip()
+                ok = bool(message.get("ok", False))
+                title = str(message.get("title") or "").strip()
+                self.workflow.resolve_restore_focus(request_id, ok, title)
+                reply({"event": "restore_focus_ack", "request_id": request_id})
+                return
+
             if cmd == "test_cut_window":
-                from cutting_master import press_hotkey_step, probe_cut_window
+                from cutting_master import ensure_window_foreground, press_hotkey_step, probe_cut_window
 
                 cm = self.config.get("cutting_master", {})
                 timings = self.config.get("timings_ms", {})
@@ -252,11 +295,22 @@ class ControllerService:
                 if send_keys:
                     if not hotkey:
                         raise RuntimeError("发送热键不能为空")
+                    if len(keyword) >= 2:
+                        ensure_window_foreground(keyword)
                     press_hotkey_step(
                         hotkey,
-                        int(message.get("delay_before_ms", timings.get("after_focus_ms", 0))),
-                        int(message.get("delay_after_ms", timings.get("after_hotkey_ms", 0))),
+                        0,
+                        0,
+                        int(message.get("press_count", 1)),
+                        int(message.get("press_interval_ms", 0)),
+                        window_title_contains=keyword or None,
                     )
+                    delay_ms = int(message.get("delay_ms", timings.get("after_hotkey_ms", 0)))
+                    if delay_ms > 0:
+                        from serial_stm32 import wait_ms
+                        import threading
+
+                        wait_ms(delay_ms, threading.Event())
                     title = hotkey
                 else:
                     if len(keyword) < 2:
@@ -313,6 +367,77 @@ class ControllerService:
                         "event": "action_group_loaded",
                         "name": payload["name"],
                         "config": self.config,
+                        "storage": "internal",
+                    }
+                )
+                return
+
+            if cmd == "export_action_group":
+                if self.workflow.running:
+                    raise RuntimeError("流程运行中，无法导出动作组")
+                file_path = str(message.get("file_path", "")).strip()
+                if not file_path:
+                    raise ValueError("请选择导出文件路径")
+                name = str(message.get("name", "")).strip()
+                steps = message.get("workflow_steps") or self.config.get("workflow_steps") or []
+                payload = export_action_group(file_path, name, steps)
+                reply(
+                    {
+                        "event": "action_group_exported",
+                        "name": payload["name"],
+                        "file_path": payload["file_path"],
+                    }
+                )
+                return
+
+            if cmd == "import_action_group":
+                if self.workflow.running:
+                    raise RuntimeError("流程运行中，无法导入动作组")
+                file_path = str(message.get("file_path", "")).strip()
+                if not file_path:
+                    raise ValueError("请选择动作组文件")
+                payload = import_action_group(file_path)
+                self.config["workflow_steps"] = payload["workflow_steps"]
+                save_config(self.config)
+                reply(
+                    {
+                        "event": "action_group_imported",
+                        "name": payload["name"],
+                        "file_path": payload["file_path"],
+                        "config": self.config,
+                    }
+                )
+                return
+
+            if cmd == "delete_action_group":
+                if self.workflow.running:
+                    raise RuntimeError("流程运行中，无法删除动作组")
+                name = str(message.get("name", "")).strip()
+                deleted = delete_action_group(name)
+                reply(
+                    {
+                        "event": "action_group_deleted",
+                        "name": deleted,
+                        "groups": list_action_groups(),
+                    }
+                )
+                return
+
+            if cmd == "export_saved_action_group":
+                if self.workflow.running:
+                    raise RuntimeError("流程运行中，无法导出动作组")
+                name = str(message.get("name", "")).strip()
+                file_path = str(message.get("file_path", "")).strip()
+                if not name:
+                    raise ValueError("请指定动作组名称")
+                if not file_path:
+                    raise ValueError("请选择导出文件路径")
+                payload = export_saved_action_group(name, file_path)
+                reply(
+                    {
+                        "event": "action_group_exported",
+                        "name": payload["name"],
+                        "file_path": payload["file_path"],
                     }
                 )
                 return

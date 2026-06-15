@@ -1,40 +1,6 @@
 {
-  "serial": {
-    "port": "COM11",
-    "baudrate": 115200,
-    "timeout_ms": 2000
-  },
-  "timings_ms": {
-    "retract": 500,
-    "extend": 500,
-    "relay_pulse": 200,
-    "before_send_keys": 200,
-    "after_focus_ms": 500,
-    "after_hotkey_ms": 1000,
-    "cut_wait": 100
-  },
-  "cutting_master": {
-    "window_title_contains": "记事本",
-    "send_hotkey": "ctrl+p"
-  },
-  "simulated_buttons": {
-    "button_a": "原点",
-    "button_b": "继续"
-  },
-  "app": {
-    "simulation_mode": false,
-    "auto_loop": false,
-    "loop_interval_ms": 100,
-    "start_hotkey": "alt+right"
-  },
-  "ui": {
-    "step_table_columns": {
-      "enable": 32,
-      "name": 104,
-      "settings": 208,
-      "actions": 58
-    }
-  },
+  "name": "001",
+  "saved_at": 1781509350781,
   "workflow_steps": [
     {
       "id": "step-1781494663292-346je",
@@ -101,7 +67,7 @@
       "label": "模拟【继续】",
       "note": "继电器No3短触",
       "delay_ms": 500,
-      "duration_ms": 2000
+      "duration_ms": 200
     },
     {
       "id": "step-cut-wait",
@@ -128,7 +94,7 @@
       "label": "模拟【原点】",
       "note": "继电器No4短触",
       "delay_ms": 500,
-      "duration_ms": 2000
+      "duration_ms": 200
     }
   ]
 }

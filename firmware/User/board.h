@@ -19,6 +19,11 @@
 #define LED_COM_PIN         GPIO_Pin_6
 #define LED_GPIO            GPIOA
 
+/* 实体按键: PA7=伸缩切换（按下接 GND，内部上拉；每次 3 秒） */
+#define BUTTON_TOGGLE_PIN   GPIO_Pin_7
+#define BUTTON_GPIO         GPIOA
+#define BUTTON_ACTION_MS    3000
+
 /* USART1: PA9=TX, PA10=RX (USB-TTL) */
 #define SERIAL_USART        USART1
 #define SERIAL_BAUDRATE     115200

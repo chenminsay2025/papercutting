@@ -711,6 +711,16 @@
               <FilePath>.\User\led.h</FilePath>
             </File>
             <File>
+              <FileName>buttons.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\User\buttons.c</FilePath>
+            </File>
+            <File>
+              <FileName>buttons.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\buttons.h</FilePath>
+            </File>
+            <File>
               <FileName>protocol.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\User\protocol.c</FilePath>

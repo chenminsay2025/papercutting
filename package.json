@@ -1,7 +1,7 @@
 {
   "name": "cutppaper",
   "version": "1.0.0",
-  "description": "CutPPaper 切纸自动控制",
+  "description": "PaperCutting 切纸自动控制",
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",

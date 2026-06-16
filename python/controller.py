@@ -278,7 +278,7 @@ class ControllerService:
             if cmd == "restore_app_focus":
                 from cutting_master import restore_window
 
-                keyword = str(message.get("keyword") or "CutPPaper").strip()
+                keyword = str(message.get("keyword") or "PaperCutting").strip()
                 title = restore_window(keyword)
                 reply({"event": "app_focus_restored", "title": title})
                 return

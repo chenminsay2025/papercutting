@@ -61,7 +61,7 @@ const STEP_DEFAULTS = {
   wait: { duration_ms: 1000 },
   focus_window: { window_keyword: "Cutting Master", delay_ms: 800 },
   send_hotkey: { hotkey: "ctrl+p", delay_ms: 200, press_count: 1, press_interval_ms: 0 },
-  restore_app: { window_keyword: "CutPPaper", delay_ms: 0 },
+  restore_app: { window_keyword: "PaperCutting", delay_ms: 0 },
   confirm_dialog: { prompt_text: "请确认后继续" },
   condition_check: { status_key: "paper", expected_value: "home" },
   call_group: { group_name: "" },
@@ -183,18 +183,27 @@ const INSERT_STEP_TYPES = [
   "condition_check", "else_branch", "end_if", "call_group", "stop",
 ];
 
-function getButtonNames(config = state.config) {
-  const raw = config?.simulated_buttons || {};
-  return {
-    button_a: String(raw.button_a || "按键A").trim() || "按键A",
-    button_b: String(raw.button_b || "按键B").trim() || "按键B",
-  };
+const DEFAULT_RELAY_LABELS = {
+  relay_k3: "继电器K3",
+  relay_k4: "继电器K4",
+};
+
+function getRelayLabels(config = state.config) {
+  const raw = config?.relay_labels || {};
+  const legacy = config?.simulated_buttons || {};
+  const relayK3 = String(
+    raw.relay_k3 || legacy.button_b || DEFAULT_RELAY_LABELS.relay_k3
+  ).trim() || DEFAULT_RELAY_LABELS.relay_k3;
+  const relayK4 = String(
+    raw.relay_k4 || legacy.button_a || DEFAULT_RELAY_LABELS.relay_k4
+  ).trim() || DEFAULT_RELAY_LABELS.relay_k4;
+  return { relay_k3: relayK3, relay_k4: relayK4 };
 }
 
 function getPulseStepLabel(type, config = state.config) {
-  const names = getButtonNames(config);
-  if (type === "pulse_a") return `模拟【${names.button_b}】`;
-  if (type === "pulse_b") return `模拟【${names.button_a}】`;
+  const names = getRelayLabels(config);
+  if (type === "pulse_a") return names.relay_k3;
+  if (type === "pulse_b") return names.relay_k4;
   return STEP_TYPE_META[type]?.label || type;
 }
 
@@ -279,8 +288,8 @@ const els = {
   baudrate: document.getElementById("baudrate"),
   timeoutMs: document.getElementById("timeoutMs"),
   refreshPortsBtn: document.getElementById("refreshPortsBtn"),
-  buttonAName: document.getElementById("buttonAName"),
-  buttonBName: document.getElementById("buttonBName"),
+  relayK3Name: document.getElementById("relayK3Name"),
+  relayK4Name: document.getElementById("relayK4Name"),
   startHotkeyBtn: document.getElementById("startHotkeyBtn"),
   startHotkeyClearBtn: document.getElementById("startHotkeyClearBtn"),
   simulationMode: document.getElementById("simulationMode"),
@@ -426,7 +435,7 @@ function createStep(type, config) {
   } else if (type === "restore_app") {
     const lastRestore = findLastStep("restore_app");
     const base = lastRestore || defaults;
-    step.window_keyword = base.window_keyword || defaults.window_keyword || "CutPPaper";
+    step.window_keyword = base.window_keyword || defaults.window_keyword || "PaperCutting";
   } else if (type === "confirm_dialog") {
     const lastConfirm = findLastStep("confirm_dialog");
     step.prompt_text = lastConfirm?.prompt_text || defaults.prompt_text || "请确认后继续";
@@ -524,7 +533,7 @@ function normalizeWorkflowSteps(steps, config) {
         : 0;
     } else if (type === "restore_app") {
       normalized.window_keyword = String(
-        step.window_keyword || STEP_DEFAULTS.restore_app.window_keyword || "CutPPaper"
+        step.window_keyword || STEP_DEFAULTS.restore_app.window_keyword || "PaperCutting"
       ).trim();
     } else if (type === "confirm_dialog") {
       normalized.prompt_text = String(
@@ -717,7 +726,7 @@ function renderStepParams(step, index, canEdit) {
   if (step.type === "focus_window") {
     inner = renderWindowPickerField("窗口", step, index, canEdit);
   } else if (step.type === "restore_app") {
-    inner = renderWindowPickerField("窗口", step, index, canEdit, "如 CutPPaper 或 Cutting Master");
+    inner = renderWindowPickerField("窗口", step, index, canEdit, "如 PaperCutting 或 Cutting Master");
   } else if (step.type === "send_hotkey") {
     const intervalField = showPressIntervalField(step)
       ? renderInlineNumber("间隔", "press_interval_ms", step, index, canEdit, 0, 50, "多次按键之间的等待时间")
@@ -1417,17 +1426,22 @@ function initAddStepMenu() {
   ).join("");
 }
 
-function refreshButtonNameUi(config = state.config) {
-  const names = getButtonNames(config);
-  if (els.buttonAName) els.buttonAName.value = names.button_a;
-  if (els.buttonBName) els.buttonBName.value = names.button_b;
+function refreshRelayLabelUi(config = state.config) {
+  const names = getRelayLabels(config);
+  if (els.relayK3Name) els.relayK3Name.value = names.relay_k3;
+  if (els.relayK4Name) els.relayK4Name.value = names.relay_k4;
 }
 
-function applyButtonNamesFromForm() {
+function applyRelayLabelsFromForm() {
   if (!state.config) state.config = {};
+  const labels = {
+    relay_k3: String(els.relayK3Name?.value || DEFAULT_RELAY_LABELS.relay_k3).trim() || DEFAULT_RELAY_LABELS.relay_k3,
+    relay_k4: String(els.relayK4Name?.value || DEFAULT_RELAY_LABELS.relay_k4).trim() || DEFAULT_RELAY_LABELS.relay_k4,
+  };
+  state.config.relay_labels = labels;
   state.config.simulated_buttons = {
-    button_a: String(els.buttonAName?.value || "按键A").trim() || "按键A",
-    button_b: String(els.buttonBName?.value || "按键B").trim() || "按键B",
+    button_b: labels.relay_k3,
+    button_a: labels.relay_k4,
   };
   state.workflowSteps = syncPulseStepLabels(state.workflowSteps, state.config);
   initAddStepMenu();
@@ -1782,7 +1796,7 @@ function readWorkflowStepsFromState() {
     if (step.type === "focus_window") {
       copy.window_keyword = String(step.window_keyword || "").trim();
     } else if (step.type === "restore_app") {
-      copy.window_keyword = String(step.window_keyword || "CutPPaper").trim();
+      copy.window_keyword = String(step.window_keyword || "PaperCutting").trim();
     } else if (step.type === "send_hotkey") {
       copy.hotkey = String(step.hotkey || "ctrl+p").trim();
       copy.press_count = Math.max(1, Number(step.press_count) || 1);
@@ -1807,7 +1821,7 @@ function applyConfigToForm(config) {
   state.config = config;
   state.simulation = config.app?.simulation_mode === true;
   state.workflowSteps = normalizeWorkflowSteps(config.workflow_steps, config);
-  refreshButtonNameUi(config);
+  refreshRelayLabelUi(config);
   els.simulationMode.checked = state.simulation;
   if (els.autoConnectMode) {
     els.autoConnectMode.checked = config.app?.auto_connect !== false;
@@ -1828,10 +1842,10 @@ function applyConfigToForm(config) {
 
 function readConfigFromForm() {
   const cuttingMaster = legacyCuttingMasterFromSteps();
-  const buttonNames = getButtonNames({
-    simulated_buttons: {
-      button_a: els.buttonAName?.value,
-      button_b: els.buttonBName?.value,
+  const relayLabels = getRelayLabels({
+    relay_labels: {
+      relay_k3: els.relayK3Name?.value,
+      relay_k4: els.relayK4Name?.value,
     },
   });
   return {
@@ -1849,7 +1863,11 @@ function readConfigFromForm() {
       after_hotkey_ms: 0,
     },
     cutting_master: cuttingMaster,
-    simulated_buttons: buttonNames,
+    relay_labels: relayLabels,
+    simulated_buttons: {
+      button_b: relayLabels.relay_k3,
+      button_a: relayLabels.relay_k4,
+    },
     app: {
       simulation_mode: els.simulationMode.checked,
       auto_loop: els.autoLoop.checked,
@@ -2380,13 +2398,13 @@ function closeConnectionModal() {
 }
 
 function updateSettingsModal() {
-  els.buttonAName.disabled = state.running;
-  els.buttonBName.disabled = state.running;
+  els.relayK3Name.disabled = state.running;
+  els.relayK4Name.disabled = state.running;
   refreshStartHotkeyUi();
 }
 
 function openSettingsModal() {
-  refreshButtonNameUi(state.config);
+  refreshRelayLabelUi(state.config);
   refreshStartHotkeyUi();
   updateSettingsModal();
   els.settingsModal.classList.remove("hidden");
@@ -2671,12 +2689,12 @@ async function restoreElectronFocus() {
 async function testFocusWindowStep(step) {
   const keyword = String(step.window_keyword || "").trim();
   await saveConfigSilently();
-  if (/cutppaper/i.test(keyword)) {
+  if (/cutppaper|papercutting/i.test(keyword)) {
     const ok = await restoreElectronFocus();
     if (!ok) {
-      throw new Error("无法激活窗口「CutPPaper」，请手动点击本程序窗口后重试");
+      throw new Error("无法激活窗口「PaperCutting」，请手动点击本程序窗口后重试");
     }
-    log("info", `已找到并激活窗口「CutPPaper」（关键字: ${keyword}）`);
+    log("info", `已找到并激活窗口「PaperCutting」（关键字: ${keyword}）`);
     return;
   }
   await yieldAppFocus();
@@ -3012,10 +3030,10 @@ els.autoConnectMode?.addEventListener("change", async () => {
   }
 });
 
-[els.buttonAName, els.buttonBName].forEach((el) => {
+[els.relayK3Name, els.relayK4Name].forEach((el) => {
   if (!el) return;
   el.addEventListener("input", () => {
-    applyButtonNamesFromForm();
+    applyRelayLabelsFromForm();
   });
   el.addEventListener("change", async () => {
     try {

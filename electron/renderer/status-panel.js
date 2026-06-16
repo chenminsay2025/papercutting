@@ -1,5 +1,5 @@
 /**
- * 统一设备状态面板（图标芯片：压纸 / USB / 电机 / 流程 / 后端 / 模式）
+ * 统一设备状态面板（图标芯片：压纸 / USB / 后端）
  */
 const StatusPanel = (() => {
   const TONE = {
@@ -12,12 +12,9 @@ const StatusPanel = (() => {
   };
 
   const CHIP_CLASS = {
-    workflow: "status-chip",
     paper: "status-chip",
     usb: "status-chip status-chip-usb status-seg-clickable",
-    motor: "status-chip",
     backend: "status-chip",
-    mode: "status-chip",
   };
 
   let els = {};
@@ -35,24 +32,6 @@ const StatusPanel = (() => {
       chip.title = hint;
     } else {
       chip.removeAttribute("title");
-    }
-  }
-
-  function formatMotor(motor) {
-    switch (motor) {
-      case "retract":
-        return { text: "缩回", tone: TONE.active };
-      case "extend":
-        return { text: "伸出", tone: TONE.active };
-      case "relay":
-        return { text: "继电器", tone: TONE.warn };
-      case "timeout":
-        return { text: "通信超时", tone: TONE.danger };
-      case "stop":
-      case "idle":
-        return { text: "停止", tone: TONE.idle };
-      default:
-        return { text: "—", tone: TONE.off };
     }
   }
 
@@ -98,44 +77,18 @@ const StatusPanel = (() => {
     return { text: "正常", tone: TONE.ok, hint: "Python 后端正常" };
   }
 
-  function formatMode(snapshot) {
-    if (snapshot.simulation) {
-      return { text: "模拟", tone: TONE.warn, hint: "不驱动真实串口" };
-    }
-    return { text: "硬件", tone: TONE.idle, hint: "真实 STM32 串口" };
-  }
-
-  function formatWorkflow(snapshot) {
-    if (snapshot.running) {
-      if (snapshot.waitingLoop) {
-        return { text: "轮间等待", tone: TONE.warn };
-      }
-      if (snapshot.loopIndex > 1) {
-        return { text: `第 ${snapshot.loopIndex} 轮`, tone: TONE.active };
-      }
-      return { text: "运行中", tone: TONE.active };
-    }
-    return { text: "空闲", tone: TONE.idle };
-  }
-
   function init(options = {}) {
     els = {
       module: document.getElementById("statusModule"),
       chips: {
-        workflow: document.getElementById("statusChipWorkflow"),
         paper: document.getElementById("statusChipPaper"),
         usb: document.getElementById("statusUsbRow"),
-        motor: document.getElementById("statusChipMotor"),
         backend: document.getElementById("statusChipBackend"),
-        mode: document.getElementById("statusChipMode"),
       },
       paper: document.getElementById("statusPaper"),
       usb: document.getElementById("statusUsb"),
       usbRow: document.getElementById("statusUsbRow"),
-      motor: document.getElementById("statusMotor"),
-      workflow: document.getElementById("statusWorkflow"),
       backend: document.getElementById("statusBackend"),
-      mode: document.getElementById("statusMode"),
       phase: document.getElementById("statusPhase"),
       progressMeta: document.getElementById("statusProgressMeta"),
       progressFill: document.getElementById("progressFill"),
@@ -180,22 +133,21 @@ const StatusPanel = (() => {
   function render(snapshot) {
     const paper = formatPaper(snapshot);
     const usb = formatUsb(snapshot);
-    const motor = formatMotor(snapshot.motorState);
     const backend = formatBackend(snapshot);
-    const mode = formatMode(snapshot);
-    const workflow = formatWorkflow(snapshot);
 
-    setChip("workflow", els.workflow, workflow.text, workflow.tone);
     setChip("paper", els.paper, paper.text, paper.tone, paper.hint);
     setChip("usb", els.usb, usb.text, usb.tone, usb.hint);
-    setChip("motor", els.motor, motor.text, motor.tone);
     setChip("backend", els.backend, backend.text, backend.tone, backend.hint);
-    setChip("mode", els.mode, mode.text, mode.tone, mode.hint);
 
     if (els.module) {
       els.module.classList.toggle("is-running", !!snapshot.running);
       els.module.classList.toggle("is-connected", !!snapshot.connected);
       els.module.classList.toggle("is-disconnected", !snapshot.connected);
+    }
+
+    const appRoot = document.getElementById("appRoot");
+    if (appRoot) {
+      appRoot.classList.toggle("is-paper-away", paper.text === "未压纸");
     }
 
     if (snapshot.phaseLabel != null) {

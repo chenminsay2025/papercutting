@@ -86,7 +86,7 @@ function openLogWindow() {
     height: 420,
     minWidth: 400,
     minHeight: 240,
-    title: "CutPPaper 日志",
+    title: "PaperCutting 日志",
     icon: iconPath,
     autoHideMenuBar: true,
     webPreferences: {
@@ -420,7 +420,7 @@ function createWindow() {
     height: savedState.height,
     minWidth: MAIN_WINDOW_DEFAULTS.minWidth,
     minHeight: MAIN_WINDOW_DEFAULTS.minHeight,
-    title: "CutPPaper",
+    title: "PaperCutting",
     icon: iconPath,
     frame: false,
     backgroundColor: "#ffffff",
@@ -541,9 +541,9 @@ async function handleRestoreFocusRequest(payload) {
   let title = "";
 
   try {
-    if (/cutppaper/i.test(keyword)) {
+    if (/cutppaper|papercutting/i.test(keyword)) {
       ok = await forceMainWindowFocus();
-      title = ok ? "CutPPaper" : "";
+      title = ok ? "PaperCutting" : "";
     } else {
       const res = await sendCommand({ cmd: "restore_app_focus", keyword });
       ok = true;

@@ -333,6 +333,6 @@ def restore_window(title_keyword: str) -> str:
     return ensure_window_foreground(keyword)
 
 
-def restore_app_window(title_keyword: str = "CutPPaper") -> str:
+def restore_app_window(title_keyword: str = "PaperCutting") -> str:
     """兼容旧调用。"""
     return restore_window(title_keyword)

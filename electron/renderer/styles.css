@@ -100,6 +100,22 @@ input[type="number"] {
   box-shadow: none;
 }
 
+.app.is-paper-away.is-window-focused .header {
+  --header-bg: #fffbeb;
+  --header-border: #fde68a;
+  --header-title: #92400e;
+  --header-muted: #b45309;
+  box-shadow: inset 0 -1px 0 rgba(217, 119, 6, 0.12);
+}
+
+.app.is-paper-away.is-window-blurred .header {
+  --header-bg: #fef3c7;
+  --header-border: #fcd34d;
+  --header-title: #b45309;
+  --header-muted: #d97706;
+  box-shadow: none;
+}
+
 .brand {
   display: flex;
   gap: 8px;
@@ -437,7 +453,7 @@ input[type="number"] {
 .badge-sim { color: var(--sim); border-color: #ddd6fe; background: var(--sim-soft); }
 
 .status-module {
-  margin: 0 16px 12px;
+  /* margin: 0 16px 12px; */
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -453,7 +469,7 @@ input[type="number"] {
 }
 
 .status-module.is-connected {
-  border-color: #6ee7b7;
+  /* border-color: #6ee7b7; */
   background: #f0fdf4;
 }
 
@@ -667,33 +683,6 @@ input[type="number"] {
 
 .workflow-panel {
   padding: 0;
-}
-
-.manual-card {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 10px 16px;
-  border-radius: 0;
-  background: #fffbeb;
-  border: none;
-  border-bottom: 1px solid #fde68a;
-  margin-bottom: 0;
-  font-size: var(--font-sm);
-  flex-shrink: 0;
-}
-
-.manual-step {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #fef3c7;
-  color: #92400e;
-  font-size: var(--font-xs);
-  font-weight: 700;
-  display: grid;
-  place-items: center;
 }
 
 .step-editor-header {

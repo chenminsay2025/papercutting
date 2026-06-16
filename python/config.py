@@ -26,12 +26,12 @@ STEP_TYPES = (
 
 STEP_TYPE_LABELS: dict[str, str] = {
     "retract": "伸缩杆缩回",
-    "pulse_a": "模拟【按键B】",
+    "pulse_a": "继电器K3",
     "focus_window": "激活窗口",
     "send_hotkey": "按键操作",
     "restore_app": "回到窗口",
     "extend": "伸缩杆伸出",
-    "pulse_b": "模拟【按键A】",
+    "pulse_b": "继电器K4",
     "wait": "等待",
     "confirm_dialog": "弹窗确认",
     "condition_check": "如果",
@@ -82,10 +82,18 @@ def call_group_label(group_name: str) -> str:
     name = str(group_name or "").strip()
     return f"调用·{name}" if name else STEP_TYPE_LABELS["call_group"]
 
-DEFAULT_BUTTON_NAMES: dict[str, str] = {
-    "button_a": "按键A",
-    "button_b": "按键B",
+DEFAULT_RELAY_LABELS: dict[str, str] = {
+    "relay_k3": "继电器K3",
+    "relay_k4": "继电器K4",
 }
+
+# 兼容旧配置键名
+_LEGACY_RELAY_KEYS: dict[str, str] = {
+    "button_b": "relay_k3",
+    "button_a": "relay_k4",
+}
+
+DEFAULT_BUTTON_NAMES = DEFAULT_RELAY_LABELS  # 兼容旧引用
 
 DEFAULT_STEP_TABLE_COLUMNS: dict[str, int] = {
     "enable": 40,
@@ -98,24 +106,35 @@ MIN_STEP_TABLE_COLUMN_PX = 32
 MAX_STEP_TABLE_COLUMN_PX = 480
 
 
+def get_relay_labels(config: dict[str, Any] | None = None) -> dict[str, str]:
+    config = config or {}
+    raw = dict(config.get("relay_labels") or {})
+    legacy = config.get("simulated_buttons") or {}
+    for old_key, new_key in _LEGACY_RELAY_KEYS.items():
+        if new_key not in raw and legacy.get(old_key):
+            raw[new_key] = legacy[old_key]
+    relay_k3 = str(raw.get("relay_k3") or DEFAULT_RELAY_LABELS["relay_k3"]).strip() or DEFAULT_RELAY_LABELS["relay_k3"]
+    relay_k4 = str(raw.get("relay_k4") or DEFAULT_RELAY_LABELS["relay_k4"]).strip() or DEFAULT_RELAY_LABELS["relay_k4"]
+    return {"relay_k3": relay_k3, "relay_k4": relay_k4}
+
+
 def get_button_names(config: dict[str, Any] | None = None) -> dict[str, str]:
-    raw = (config or {}).get("simulated_buttons", {})
-    button_a = str(raw.get("button_a") or DEFAULT_BUTTON_NAMES["button_a"]).strip() or DEFAULT_BUTTON_NAMES["button_a"]
-    button_b = str(raw.get("button_b") or DEFAULT_BUTTON_NAMES["button_b"]).strip() or DEFAULT_BUTTON_NAMES["button_b"]
-    return {"button_a": button_a, "button_b": button_b}
+    """兼容旧代码：返回 relay_k3/k4 的别名 button_b/button_a。"""
+    labels = get_relay_labels(config)
+    return {"button_b": labels["relay_k3"], "button_a": labels["relay_k4"]}
 
 
 def pulse_step_label(step_type: str, config: dict[str, Any] | None = None) -> str:
-    names = get_button_names(config)
+    names = get_relay_labels(config)
     if step_type == "pulse_a":
-        return f"模拟【{names['button_b']}】"
+        return names["relay_k3"]
     if step_type == "pulse_b":
-        return f"模拟【{names['button_a']}】"
+        return names["relay_k4"]
     return STEP_TYPE_LABELS.get(step_type, step_type)
 
 DEFAULT_WORKFLOW_STEPS: list[dict[str, Any]] = [
     {"id": "step-retract", "type": "retract", "enabled": True, "label": "伸缩杆缩回", "duration_ms": 3000},
-    {"id": "step-pulse-a", "type": "pulse_a", "enabled": True, "label": "模拟【按键B】", "duration_ms": 200},
+    {"id": "step-pulse-a", "type": "pulse_a", "enabled": True, "label": "继电器K3", "duration_ms": 200},
     {
         "id": "step-focus",
         "type": "focus_window",
@@ -136,7 +155,7 @@ DEFAULT_WORKFLOW_STEPS: list[dict[str, Any]] = [
     },
     {"id": "step-cut-wait", "type": "wait", "enabled": True, "label": "等待切割", "duration_ms": 6000, "note": "等待切割机完成"},
     {"id": "step-extend", "type": "extend", "enabled": True, "label": "伸缩杆伸出", "duration_ms": 3000},
-    {"id": "step-pulse-b", "type": "pulse_b", "enabled": True, "label": "模拟【按键A】", "duration_ms": 200},
+    {"id": "step-pulse-b", "type": "pulse_b", "enabled": True, "label": "继电器K4", "duration_ms": 200},
 ]
 
 FOCUS_WINDOW_DEFAULTS: dict[str, Any] = {
@@ -152,7 +171,7 @@ SEND_HOTKEY_DEFAULTS: dict[str, Any] = {
 }
 
 RESTORE_APP_DEFAULTS: dict[str, Any] = {
-    "window_keyword": "CutPPaper",
+    "window_keyword": "PaperCutting",
     "delay_ms": 0,
 }
 
@@ -274,7 +293,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "window_title_contains": "Cutting Master",
         "send_hotkey": "ctrl+p",
     },
-    "simulated_buttons": deepcopy(DEFAULT_BUTTON_NAMES),
+    "simulated_buttons": deepcopy(DEFAULT_RELAY_LABELS),
+    "relay_labels": deepcopy(DEFAULT_RELAY_LABELS),
     "app": {
         "simulation_mode": False,
         "auto_loop": False,
@@ -355,12 +375,25 @@ def validate_config(config: dict[str, Any]) -> list[str]:
     if not isinstance(loop_interval_ms, int) or not (0 <= loop_interval_ms <= MAX_TIMING_MS):
         errors.append(f"轮间间隔 loop_interval_ms 必须是 0–{MAX_TIMING_MS} 的整数")
 
-    buttons = config.get("simulated_buttons", {})
-    for key, default in DEFAULT_BUTTON_NAMES.items():
-        value = str(buttons.get(key, default)).strip()
+    relay_cfg = config.get("relay_labels", {})
+    legacy_buttons = config.get("simulated_buttons", {})
+    relay_keys = ("relay_k3", "relay_k4")
+    for key in relay_keys:
+        value = str(relay_cfg.get(key) or legacy_buttons.get(
+            "button_b" if key == "relay_k3" else "button_a",
+            DEFAULT_RELAY_LABELS[key],
+        )).strip()
         if not value:
-            errors.append(f"simulated_buttons.{key} 不能为空")
+            errors.append(f"relay_labels.{key} 不能为空")
         elif len(value) > 16:
+            errors.append(f"relay_labels.{key} 不能超过 16 个字符")
+
+    buttons = config.get("simulated_buttons", {})
+    for key in ("button_a", "button_b"):
+        if key not in buttons:
+            continue
+        value = str(buttons.get(key, "")).strip()
+        if value and len(value) > 16:
             errors.append(f"simulated_buttons.{key} 不能超过 16 个字符")
 
     ui_cfg = config.get("ui", {})
@@ -640,6 +673,9 @@ def load_config() -> dict[str, Any]:
             value = default
         normalized_columns[key] = max(MIN_STEP_TABLE_COLUMN_PX, min(MAX_STEP_TABLE_COLUMN_PX, value))
     config["ui"]["step_table_columns"] = normalized_columns
+    labels = get_relay_labels(config)
+    config["relay_labels"] = labels
+    config["simulated_buttons"] = get_button_names(config)
     return config
 
 

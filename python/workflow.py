@@ -391,7 +391,7 @@ class WorkflowRunner:
         if is_app_window_keyword(keyword):
             raise RuntimeError(
                 f"无法激活窗口「{keyword}」。"
-                "Windows 阻止自动切回，请手动点击 CutPPaper 窗口后重试。"
+                "Windows 阻止自动切回，请手动点击 PaperCutting 窗口后重试。"
             )
 
         from cutting_master import ensure_window_foreground
@@ -469,7 +469,7 @@ class WorkflowRunner:
             self._emit_log("info", f"已执行按键: {hotkey}{suffix}")
             self._emit({"event": "cut_hotkey_sent", "title": "", "hotkey": hotkey})
         elif step == "restore_app":
-            keyword = str(wf_step.get("window_keyword") or "CutPPaper").strip()
+            keyword = str(wf_step.get("window_keyword") or "PaperCutting").strip()
             title = self._activate_window(keyword)
             self._emit_log("info", f"已回到窗口: {title}")
             self._emit({"event": "app_focus_restored", "title": title})
@@ -876,7 +876,7 @@ class WorkflowRunner:
         cycle_start: float,
         timings: dict[str, int],
     ) -> None:
-        keyword = str(step.get("window_keyword") or "CutPPaper").strip()
+        keyword = str(step.get("window_keyword") or "PaperCutting").strip()
         title = self._activate_window(keyword)
         self._emit_log("info", f"已回到窗口: {title}")
         self._emit({"event": "app_focus_restored", "title": title})

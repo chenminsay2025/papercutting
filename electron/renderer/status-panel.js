@@ -1,24 +1,41 @@
 /**
- * 统一设备状态面板（压纸 / USB / 电机 / 流程 / 后端 / 模式）
+ * 统一设备状态面板（图标芯片：压纸 / USB / 电机 / 流程 / 后端 / 模式）
  */
 const StatusPanel = (() => {
   const TONE = {
-    ok: "is-ok",
-    warn: "is-warn",
-    danger: "is-danger",
-    off: "is-off",
-    active: "is-active",
-    idle: "is-idle",
+    ok: "ok",
+    warn: "warn",
+    danger: "danger",
+    off: "off",
+    active: "active",
+    idle: "idle",
+  };
+
+  const CHIP_CLASS = {
+    workflow: "status-chip",
+    paper: "status-chip",
+    usb: "status-chip status-chip-usb status-seg-clickable",
+    motor: "status-chip",
+    backend: "status-chip",
+    mode: "status-chip",
   };
 
   let els = {};
   let onUsbClick = null;
 
-  function setValue(el, text, tone) {
-    if (!el) return;
-    el.textContent = text;
-    el.className = "status-value";
-    if (tone) el.classList.add(tone);
+  function setChip(chipKey, valueEl, text, tone, hint) {
+    if (valueEl) {
+      valueEl.textContent = text;
+    }
+    const chip = els.chips?.[chipKey];
+    if (!chip) return;
+    chip.className = CHIP_CLASS[chipKey] || "status-chip";
+    chip.classList.add(`tone-${tone || TONE.off}`);
+    if (hint) {
+      chip.title = hint;
+    } else {
+      chip.removeAttribute("title");
+    }
   }
 
   function formatMotor(motor) {
@@ -45,7 +62,7 @@ const StatusPanel = (() => {
     }
     if (snapshot.simulation) {
       const sim = snapshot.rodPosition === "home" ? "压纸中" : "未压纸";
-      return { text: `模拟 · ${sim}`, tone: TONE.warn, hint: "模拟硬件模式" };
+      return { text: sim, tone: TONE.warn, hint: "模拟硬件模式" };
     }
     if (snapshot.rodPosition === "home") {
       return { text: "压纸中", tone: TONE.ok, hint: "传感器遮挡 · 已缩回" };
@@ -58,17 +75,16 @@ const StatusPanel = (() => {
 
   function formatUsb(snapshot) {
     if (!snapshot.connected) {
-      return { text: "未连接", tone: TONE.danger, hint: "点击配置串口并连接" };
+      return { text: "未连接", tone: TONE.danger, hint: "点击此处连接 USB 串口" };
     }
     if (snapshot.simulation) {
-      return { text: "模拟 · 已连接", tone: TONE.warn, hint: "模拟硬件，不驱动串口" };
+      return { text: "模拟", tone: TONE.warn, hint: "模拟硬件，不驱动串口" };
     }
     const port = snapshot.connectedPort || "串口";
-    const baud = snapshot.baudrate || 115200;
     return {
-      text: `${port} · ${baud}`,
+      text: port,
       tone: TONE.ok,
-      hint: `${port} · ${baud} · 超时 ${snapshot.timeoutMs || 2000}ms`,
+      hint: `${port} · ${snapshot.baudrate || 115200} · 超时 ${snapshot.timeoutMs || 2000}ms`,
     };
   }
 
@@ -79,7 +95,7 @@ const StatusPanel = (() => {
     if (!snapshot.pythonReady) {
       return { text: "启动中", tone: TONE.warn, hint: "等待 Python 后端就绪" };
     }
-    return { text: "运行中", tone: TONE.ok, hint: "Python 后端正常" };
+    return { text: "正常", tone: TONE.ok, hint: "Python 后端正常" };
   }
 
   function formatMode(snapshot) {
@@ -95,7 +111,7 @@ const StatusPanel = (() => {
         return { text: "轮间等待", tone: TONE.warn };
       }
       if (snapshot.loopIndex > 1) {
-        return { text: `运行中 · 第 ${snapshot.loopIndex} 轮`, tone: TONE.active };
+        return { text: `第 ${snapshot.loopIndex} 轮`, tone: TONE.active };
       }
       return { text: "运行中", tone: TONE.active };
     }
@@ -105,6 +121,14 @@ const StatusPanel = (() => {
   function init(options = {}) {
     els = {
       module: document.getElementById("statusModule"),
+      chips: {
+        workflow: document.getElementById("statusChipWorkflow"),
+        paper: document.getElementById("statusChipPaper"),
+        usb: document.getElementById("statusUsbRow"),
+        motor: document.getElementById("statusChipMotor"),
+        backend: document.getElementById("statusChipBackend"),
+        mode: document.getElementById("statusChipMode"),
+      },
       paper: document.getElementById("statusPaper"),
       usb: document.getElementById("statusUsb"),
       usbRow: document.getElementById("statusUsbRow"),
@@ -161,24 +185,17 @@ const StatusPanel = (() => {
     const mode = formatMode(snapshot);
     const workflow = formatWorkflow(snapshot);
 
-    setValue(els.paper, paper.text, paper.tone);
-    if (els.paper) els.paper.title = paper.hint;
-
-    setValue(els.usb, usb.text, usb.tone);
-    if (els.usbRow) els.usbRow.title = usb.hint;
-
-    setValue(els.motor, motor.text, motor.tone);
-    setValue(els.backend, backend.text, backend.tone);
-    if (els.backend) els.backend.title = backend.hint;
-
-    setValue(els.mode, mode.text, mode.tone);
-    if (els.mode) els.mode.title = mode.hint;
-
-    setValue(els.workflow, workflow.text, workflow.tone);
+    setChip("workflow", els.workflow, workflow.text, workflow.tone);
+    setChip("paper", els.paper, paper.text, paper.tone, paper.hint);
+    setChip("usb", els.usb, usb.text, usb.tone, usb.hint);
+    setChip("motor", els.motor, motor.text, motor.tone);
+    setChip("backend", els.backend, backend.text, backend.tone, backend.hint);
+    setChip("mode", els.mode, mode.text, mode.tone, mode.hint);
 
     if (els.module) {
       els.module.classList.toggle("is-running", !!snapshot.running);
       els.module.classList.toggle("is-connected", !!snapshot.connected);
+      els.module.classList.toggle("is-disconnected", !snapshot.connected);
     }
 
     if (snapshot.phaseLabel != null) {
@@ -190,8 +207,9 @@ const StatusPanel = (() => {
       );
     }
 
-    if (els.cycleHint && snapshot.cycleHint != null) {
-      els.cycleHint.textContent = snapshot.cycleHint;
+    const cycleHintEl = els.cycleHint || document.getElementById("cycleHint");
+    if (cycleHintEl && snapshot.cycleHint != null) {
+      cycleHintEl.textContent = snapshot.cycleHint;
     }
   }
 

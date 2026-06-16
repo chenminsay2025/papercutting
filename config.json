@@ -25,7 +25,8 @@
     "simulation_mode": false,
     "auto_loop": false,
     "loop_interval_ms": 100,
-    "start_hotkey": "alt+right"
+    "start_hotkey": "alt+right",
+    "auto_connect": true
   },
   "ui": {
     "step_table_columns": {
@@ -36,16 +37,6 @@
     }
   },
   "workflow_steps": [
-    {
-      "id": "step-1781591364766-klwg7",
-      "type": "condition_check",
-      "enabled": true,
-      "label": "如果·压纸=压纸中",
-      "note": "",
-      "delay_ms": 0,
-      "status_key": "paper",
-      "expected_value": "home"
-    },
     {
       "id": "step-1781494663292-346je",
       "type": "confirm_dialog",
@@ -132,24 +123,6 @@
       "duration_ms": 2000
     },
     {
-      "id": "step-pulse-b",
-      "type": "pulse_b",
-      "enabled": true,
-      "label": "模拟【原点】",
-      "note": "继电器No4短触",
-      "delay_ms": 500,
-      "duration_ms": 2000
-    },
-    {
-      "id": "step-1781591364766-shhsi",
-      "type": "else_branch",
-      "enabled": true,
-      "label": "否则",
-      "note": "",
-      "delay_ms": 0,
-      "duration_ms": 0
-    },
-    {
       "id": "step-1781591432744-2kxsn",
       "type": "confirm_dialog",
       "enabled": true,
@@ -159,13 +132,13 @@
       "prompt_text": "未压纸"
     },
     {
-      "id": "step-1781591364766-ohyfk",
-      "type": "end_if",
+      "id": "step-pulse-b",
+      "type": "pulse_b",
       "enabled": true,
-      "label": "结束如果",
-      "note": "",
-      "delay_ms": 0,
-      "duration_ms": 0
+      "label": "模拟【原点】",
+      "note": "继电器No4短触",
+      "delay_ms": 500,
+      "duration_ms": 2000
     }
   ]
 }

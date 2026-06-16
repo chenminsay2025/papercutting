@@ -52,46 +52,71 @@
           </div>
 
           <div class="status-module" id="statusModule">
-            <div class="status-module-header">
-              <span class="status-module-title">设备状态</span>
-              <div class="status-module-actions">
+            <div class="status-line">
+              <div class="status-inline">
+                <div class="status-chip" id="statusChipWorkflow">
+                  <span class="status-chip-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  </span>
+                  <span class="status-chip-text">
+                    <span class="status-chip-label">流程</span>
+                    <span id="statusWorkflow" class="status-chip-value">空闲</span>
+                  </span>
+                </div>
+                <div class="status-chip" id="statusChipPaper">
+                  <span class="status-chip-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M8 13h8"></path><path d="M8 17h5"></path></svg>
+                  </span>
+                  <span class="status-chip-text">
+                    <span class="status-chip-label">压纸</span>
+                    <span id="statusPaper" class="status-chip-value">—</span>
+                  </span>
+                </div>
+                <div class="status-chip status-chip-usb status-seg-clickable" id="statusUsbRow" role="button" tabindex="0" title="点击管理 USB 连接">
+                  <span class="status-chip-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"></path><path d="M9 8V2"></path><path d="M15 8V2"></path><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"></path></svg>
+                  </span>
+                  <span class="status-chip-text">
+                    <span class="status-chip-label">USB</span>
+                    <span id="statusUsb" class="status-chip-value">未连接</span>
+                  </span>
+                </div>
+                <div class="status-chip" id="statusChipMotor">
+                  <span class="status-chip-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path><path d="m18 9-6 6-6-6"></path></svg>
+                  </span>
+                  <span class="status-chip-text">
+                    <span class="status-chip-label">电机</span>
+                    <span id="statusMotor" class="status-chip-value">—</span>
+                  </span>
+                </div>
+                <div class="status-chip" id="statusChipBackend">
+                  <span class="status-chip-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="6" rx="1"></rect><rect x="2" y="15" width="20" height="6" rx="1"></rect><path d="M6 9v6"></path><path d="M18 9v6"></path></svg>
+                  </span>
+                  <span class="status-chip-text">
+                    <span class="status-chip-label">后端</span>
+                    <span id="statusBackend" class="status-chip-value">启动中</span>
+                  </span>
+                </div>
+                <div class="status-chip" id="statusChipMode">
+                  <span class="status-chip-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8"></path><path d="M12 17v4"></path></svg>
+                  </span>
+                  <span class="status-chip-text">
+                    <span class="status-chip-label">模式</span>
+                    <span id="statusMode" class="status-chip-value">硬件</span>
+                  </span>
+                </div>
+              </div>
+              <div class="status-line-tail">
+                <span id="statusPhase" class="status-phase">空闲</span>
+                <span id="statusProgressMeta" class="status-progress-meta">0/0ms</span>
                 <span id="cycleHint" class="status-cycle-hint">~0s</span>
                 <button type="button" id="statusRefreshBtn" class="btn btn-ghost btn-xs" title="刷新设备状态">刷新</button>
               </div>
             </div>
-            <div class="status-grid">
-              <div class="status-item">
-                <span class="status-label">流程</span>
-                <span id="statusWorkflow" class="status-value is-idle">空闲</span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">压纸</span>
-                <span id="statusPaper" class="status-value is-off">—</span>
-              </div>
-              <div class="status-item status-item-clickable" id="statusUsbRow" role="button" tabindex="0" title="点击管理 USB 连接">
-                <span class="status-label status-label-usb">USB</span>
-                <span id="statusUsb" class="status-value is-off">未连接</span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">电机</span>
-                <span id="statusMotor" class="status-value is-off">—</span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">后端</span>
-                <span id="statusBackend" class="status-value is-off">启动中</span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">模式</span>
-                <span id="statusMode" class="status-value is-idle">硬件</span>
-              </div>
-            </div>
-            <div class="status-run">
-              <div class="status-run-row">
-                <span id="statusPhase" class="status-phase">空闲</span>
-                <span id="statusProgressMeta" class="status-progress-meta">0/0ms</span>
-              </div>
-              <div class="progress-bar"><div id="progressFill"></div></div>
-            </div>
+            <div class="progress-bar status-progress-bar"><div id="progressFill"></div></div>
           </div>
 
           <div class="step-editor-header">
@@ -172,6 +197,7 @@
             <div class="settings-section-title">运行模式</div>
             <div class="inline-toggles">
               <label class="toggle-row"><input id="simulationMode" type="checkbox" /><span>模拟硬件（不驱动串口）</span></label>
+              <label class="toggle-row"><input id="autoConnectMode" type="checkbox" checked /><span>启动时自动连接</span></label>
             </div>
           </div>
 

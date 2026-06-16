@@ -49,6 +49,8 @@ const STEP_TYPE_META = {
   condition_check: { label: "如果" },
   else_branch: { label: "否则" },
   end_if: { label: "结束如果" },
+  call_group: { label: "调用动作组" },
+  stop: { label: "停止流程" },
 };
 
 const STEP_DEFAULTS = {
@@ -62,6 +64,7 @@ const STEP_DEFAULTS = {
   restore_app: { window_keyword: "CutPPaper", delay_ms: 0 },
   confirm_dialog: { prompt_text: "请确认后继续" },
   condition_check: { status_key: "paper", expected_value: "home" },
+  call_group: { group_name: "" },
 };
 
 const CONDITION_STATUS_KEYS = [
@@ -98,19 +101,32 @@ function updateConditionStepLabel(step) {
   step.label = `如果·${keyLabel}=${valLabel}`;
 }
 
+function updateCallGroupStepLabel(step) {
+  if (step?.type !== "call_group") return;
+  const name = String(step.group_name || "").trim();
+  step.label = name ? `调用·${name}` : "调用动作组";
+}
+
 function computeBranchLayout(steps) {
   const layout = steps.map(() => ({}));
   const stack = [];
+  const setDepth = (index, depth) => {
+    layout[index].depth = Math.max(layout[index].depth ?? 0, depth);
+  };
   for (let i = 0; i < steps.length; i++) {
     const type = steps[i].type;
     if (type === "condition_check") {
-      stack.push({ ifIdx: i });
+      const depth = stack.length;
+      stack.push({ ifIdx: i, depth });
       layout[i].role = "if";
+      setDepth(i, depth);
     } else if (type === "else_branch") {
+      const depth = Math.max(0, stack.length - 1);
       if (stack.length) {
         stack[stack.length - 1].elseIdx = i;
       }
       layout[i].role = "else";
+      setDepth(i, depth);
     } else if (type === "end_if") {
       if (!stack.length) {
         layout[i].role = "endif";
@@ -118,16 +134,19 @@ function computeBranchLayout(steps) {
         continue;
       }
       const block = stack.pop();
-      block.endIdx = i;
       layout[i].role = "endif";
+      setDepth(i, block.depth);
       const elseIdx = block.elseIdx ?? -1;
       const thenEnd = elseIdx >= 0 ? elseIdx : i;
+      const bodyDepth = block.depth + 1;
       for (let j = block.ifIdx + 1; j < thenEnd; j++) {
         layout[j].zone = "then";
+        setDepth(j, bodyDepth);
       }
       if (elseIdx >= 0) {
         for (let j = elseIdx + 1; j < i; j++) {
           layout[j].zone = "else";
+          setDepth(j, bodyDepth);
         }
       }
     }
@@ -160,7 +179,8 @@ const DEFAULT_STEP_TABLE_COLUMNS = {
 const STEP_TABLE_COLUMN_LIMITS = { min: 32, max: 480 };
 
 const INSERT_STEP_TYPES = [
-  "retract", "pulse_a", "focus_window", "send_hotkey", "restore_app", "extend", "pulse_b", "wait", "confirm_dialog", "condition_check", "else_branch", "end_if",
+  "retract", "pulse_a", "focus_window", "send_hotkey", "restore_app", "extend", "pulse_b", "wait", "confirm_dialog",
+  "condition_check", "else_branch", "end_if", "call_group", "stop",
 ];
 
 function getButtonNames(config = state.config) {
@@ -209,6 +229,7 @@ const state = {
   motorState: null,
   pythonReady: false,
   pythonExit: false,
+  autoConnectInProgress: false,
   phaseLabel: "空闲",
   progressElapsed: 0,
   progressTotal: 0,
@@ -263,6 +284,7 @@ const els = {
   startHotkeyBtn: document.getElementById("startHotkeyBtn"),
   startHotkeyClearBtn: document.getElementById("startHotkeyClearBtn"),
   simulationMode: document.getElementById("simulationMode"),
+  autoConnectMode: document.getElementById("autoConnectMode"),
   stepEditor: document.getElementById("stepEditor"),
   colEnable: document.getElementById("colEnable"),
   colName: document.getElementById("colName"),
@@ -418,7 +440,11 @@ function createStep(type, config) {
       step.expected_value = fallback;
     }
     updateConditionStepLabel(step);
-  } else if (type === "else_branch" || type === "end_if") {
+  } else if (type === "call_group") {
+    const lastCall = findLastStep("call_group");
+    step.group_name = String(lastCall?.group_name || defaults.group_name || "").trim();
+    updateCallGroupStepLabel(step);
+  } else if (type === "else_branch" || type === "end_if" || type === "stop") {
     // 分支标记，无额外字段
   } else if (type === "wait") {
     const lastWait = findLastStep("wait");
@@ -515,6 +541,13 @@ function normalizeWorkflowSteps(steps, config) {
         normalized.expected_value = options[0]?.value || "home";
       }
       updateConditionStepLabel(normalized);
+    } else if (type === "call_group") {
+      normalized.group_name = String(step.group_name || "").trim();
+      updateCallGroupStepLabel(normalized);
+    } else if (type === "stop") {
+      normalized.label = String(step.label || STEP_TYPE_META.stop.label).trim() || STEP_TYPE_META.stop.label;
+    } else if (type === "else_branch" || type === "end_if") {
+      // 分支标记，无额外字段
     } else {
       const legacyKey = LEGACY_TIMING_KEYS[type] || type;
       normalized.duration_ms = Number(step.duration_ms ?? timings[legacyKey] ?? STEP_DEFAULTS[type]?.duration_ms ?? 1000);
@@ -607,7 +640,7 @@ function stepDurationMs(step) {
     actionMs = 0;
   } else if (step.type === "condition_check") {
     actionMs = 0;
-  } else if (step.type === "else_branch" || step.type === "end_if") {
+  } else if (step.type === "else_branch" || step.type === "end_if" || step.type === "call_group" || step.type === "stop") {
     actionMs = 0;
   } else {
     actionMs = Number(step.duration_ms) || 0;
@@ -671,6 +704,14 @@ function renderInlineSelect(label, field, step, index, canEdit, options) {
   return `<label class="step-inline-field"><span class="step-field-label">${label}</span><select class="step-input-select" data-field="${field}" data-index="${index}" ${dis}>${opts}</select></label>`;
 }
 
+function getActionGroupOptions() {
+  const groups = state.actionGroups || [];
+  if (!groups.length) {
+    return [{ value: "", label: "（暂无动作组）" }];
+  }
+  return groups.map((group) => ({ value: group.name, label: group.name }));
+}
+
 function renderStepParams(step, index, canEdit) {
   let inner = "";
   if (step.type === "focus_window") {
@@ -699,6 +740,10 @@ function renderStepParams(step, index, canEdit) {
     inner = `<span class="branch-marker-hint">条件不成立时执行以下步骤</span>`;
   } else if (step.type === "end_if") {
     inner = `<span class="branch-marker-hint">条件分支结束</span>`;
+  } else if (step.type === "call_group") {
+    inner = renderInlineSelect("动作组", "group_name", step, index, canEdit, getActionGroupOptions());
+  } else if (step.type === "stop") {
+    inner = `<span class="branch-marker-hint">结束本轮，不执行后续步骤</span>`;
   } else if (step.type === "wait") {
     inner = renderInlineNumber("等待", "duration_ms", step, index, canEdit, 0, 100);
   } else {
@@ -706,7 +751,12 @@ function renderStepParams(step, index, canEdit) {
     const label = "时长";
     inner = renderInlineNumber(label, "duration_ms", step, index, canEdit, isPulse ? 50 : 0, isPulse ? 10 : 100);
   }
-  inner += renderStepDelayBadge(step);
+  const skipDelayBadge = new Set([
+    "condition_check", "else_branch", "end_if", "call_group", "stop",
+  ]);
+  if (!skipDelayBadge.has(step.type)) {
+    inner += renderStepDelayBadge(step);
+  }
   return `<div class="step-settings-inner">${inner}</div>`;
 }
 
@@ -880,6 +930,8 @@ function renderStepEditor() {
     if (!step.enabled) status = "disabled";
 
     const branch = branchLayout[index] || {};
+    const depth = branch.depth ?? 0;
+    const depthStyle = depth > 0 ? ` style="--branch-depth:${depth}"` : "";
     const branchClass = [
       branch.zone ? `branch-zone-${branch.zone}` : "",
       branch.role ? `branch-role-${branch.role}` : "",
@@ -887,7 +939,7 @@ function renderStepEditor() {
     ].filter(Boolean).join(" ");
 
     return `
-      <tr class="step-row ${status} ${branchClass}" data-step-id="${step.id}" data-index="${index}">
+      <tr class="step-row ${status} ${branchClass}" data-step-id="${step.id}" data-index="${index}"${depthStyle}>
         ${renderStepRowHtml(step, index, canEdit)}
       </tr>
     `;
@@ -1446,6 +1498,9 @@ async function refreshActionGroups() {
   const response = await sendCommand({ cmd: "list_action_groups" });
   if (response.event === "action_groups") {
     renderManageGroupsList(response.groups || []);
+    if (!state.running) {
+      renderStepEditor();
+    }
   }
 }
 
@@ -1466,6 +1521,8 @@ async function saveGroupToLibrary(name) {
   }
   els.groupNameInput.value = trimmed;
   closeSaveGroupModal();
+  await refreshActionGroups();
+  log("info", `动作组「${trimmed}」已保存`);
 }
 
 async function exportCurrentGroup() {
@@ -1616,9 +1673,10 @@ function buildStatusSnapshot() {
 function updateConnIndicator() {
   if (!els.connBar) return;
   els.connBar.classList.toggle("is-connected", state.connected);
+  els.connBar.classList.toggle("is-disconnected", !state.connected);
   els.connBar.title = state.connected
     ? (state.simulation ? "USB · 模拟已连接" : `USB · ${state.connectedPort || "已连接"}`)
-    : "USB · 未连接";
+    : "USB · 未连接 — 点击连接";
 }
 
 function refreshStatusPanel() {
@@ -1734,6 +1792,10 @@ function readWorkflowStepsFromState() {
     } else if (step.type === "condition_check") {
       copy.status_key = String(step.status_key || "paper").trim();
       copy.expected_value = String(step.expected_value || "home").trim();
+    } else if (step.type === "call_group") {
+      copy.group_name = String(step.group_name || "").trim();
+    } else if (step.type === "else_branch" || step.type === "end_if" || step.type === "stop") {
+      // 无额外字段
     } else {
       copy.duration_ms = Number(step.duration_ms) || 0;
     }
@@ -1747,6 +1809,9 @@ function applyConfigToForm(config) {
   state.workflowSteps = normalizeWorkflowSteps(config.workflow_steps, config);
   refreshButtonNameUi(config);
   els.simulationMode.checked = state.simulation;
+  if (els.autoConnectMode) {
+    els.autoConnectMode.checked = config.app?.auto_connect !== false;
+  }
   els.autoLoop.checked = config.app?.auto_loop === true;
   els.loopIntervalMs.value = config.app?.loop_interval_ms ?? 3000;
   updateLoopMenuBtn();
@@ -1790,6 +1855,7 @@ function readConfigFromForm() {
       auto_loop: els.autoLoop.checked,
       loop_interval_ms: Number(els.loopIntervalMs.value) || 0,
       start_hotkey: getStartHotkey(),
+      auto_connect: els.autoConnectMode?.checked !== false,
     },
     ui: {
       step_table_columns: readStepTableColumnWidths(),
@@ -2255,6 +2321,48 @@ async function connectDevice() {
   await sendCommand({ cmd: "connect", port: els.portSelect.value });
 }
 
+function shouldAutoConnect() {
+  return state.config?.app?.auto_connect !== false;
+}
+
+async function tryAutoConnect() {
+  if (state.connected || state.running || state.autoConnectInProgress || !state.pythonReady) {
+    return;
+  }
+  if (!shouldAutoConnect()) {
+    return;
+  }
+
+  const simulation = state.config?.app?.simulation_mode === true;
+  if (simulation) {
+    els.portSelect.value = "SIM（模拟）";
+  } else {
+    const preferred = String(state.config?.serial?.port || "").trim();
+    const options = [...els.portSelect.options].map((opt) => opt.value).filter(Boolean);
+    if (!options.length) {
+      log("warn", "自动连接跳过：未检测到串口，请插入 USB 后点刷新");
+      return;
+    }
+    if (preferred && options.includes(preferred)) {
+      els.portSelect.value = preferred;
+    } else if (preferred) {
+      log("warn", `自动连接跳过：配置端口 ${preferred} 未找到，请在连接窗口选择端口`);
+      return;
+    } else {
+      els.portSelect.value = options[0];
+    }
+  }
+
+  state.autoConnectInProgress = true;
+  try {
+    await connectDevice();
+  } catch (err) {
+    log("warn", `自动连接失败: ${err.message}`);
+  } finally {
+    state.autoConnectInProgress = false;
+  }
+}
+
 async function disconnectDevice() {
   await sendCommand({ cmd: "disconnect" });
 }
@@ -2299,7 +2407,9 @@ function handleBackendEvent(payload) {
       sendCommand({ cmd: "get_config" }).then((res) => {
         if (res.event === "config") applyConfigToForm(res.config);
         return refreshPorts();
-      }).then(refreshActionGroups);
+      }).then(refreshActionGroups)
+        .then(() => tryAutoConnect())
+        .catch((err) => log("error", err.message));
       break;
     case "python_exit":
       state.pythonReady = false;
@@ -2477,8 +2587,15 @@ function handleBackendEvent(payload) {
   }
 }
 
-els.refreshPortsBtn.addEventListener("click", () => {
-  refreshPorts().catch((err) => log("error", err.message));
+els.refreshPortsBtn.addEventListener("click", async () => {
+  try {
+    await refreshPorts();
+    if (!state.connected) {
+      await tryAutoConnect();
+    }
+  } catch (err) {
+    log("error", err.message);
+  }
 });
 
 els.connBar.addEventListener("click", () => {
@@ -2653,6 +2770,13 @@ function handleStepFieldInput(target) {
   if (field === "expected_value") {
     state.workflowSteps[index][field] = target.value;
     updateConditionStepLabel(state.workflowSteps[index]);
+    recalcTotalMs({ rerender: false });
+    renderStepEditor();
+    return;
+  }
+  if (field === "group_name") {
+    state.workflowSteps[index][field] = target.value;
+    updateCallGroupStepLabel(state.workflowSteps[index]);
     recalcTotalMs({ rerender: false });
     renderStepEditor();
     return;
@@ -2869,6 +2993,19 @@ els.simulationMode.addEventListener("change", async () => {
     await refreshPorts();
     if (state.connected) {
       await sendCommand({ cmd: "disconnect" });
+    }
+    await tryAutoConnect();
+  } catch (err) {
+    log("error", err.message);
+  }
+});
+
+els.autoConnectMode?.addEventListener("change", async () => {
+  if (state.running) return;
+  try {
+    await saveConfigSilently();
+    if (els.autoConnectMode.checked && !state.connected) {
+      await tryAutoConnect();
     }
   } catch (err) {
     log("error", err.message);

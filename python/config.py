@@ -20,6 +20,8 @@ STEP_TYPES = (
     "condition_check",
     "else_branch",
     "end_if",
+    "call_group",
+    "stop",
 )
 
 STEP_TYPE_LABELS: dict[str, str] = {
@@ -35,6 +37,8 @@ STEP_TYPE_LABELS: dict[str, str] = {
     "condition_check": "如果",
     "else_branch": "否则",
     "end_if": "结束如果",
+    "call_group": "调用动作组",
+    "stop": "停止流程",
 }
 
 CONDITION_STATUS_KEYS = ("paper", "motor", "usb")
@@ -72,6 +76,11 @@ def condition_check_label(status_key: str, expected_value: str) -> str:
     key_label = CONDITION_STATUS_LABELS.get(status_key, status_key)
     val_label = condition_value_label(status_key, expected_value)
     return f"如果·{key_label}={val_label}"
+
+
+def call_group_label(group_name: str) -> str:
+    name = str(group_name or "").strip()
+    return f"调用·{name}" if name else STEP_TYPE_LABELS["call_group"]
 
 DEFAULT_BUTTON_NAMES: dict[str, str] = {
     "button_a": "按键A",
@@ -271,6 +280,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "auto_loop": False,
         "loop_interval_ms": 3000,
         "start_hotkey": "f5",
+        "auto_connect": True,
     },
     "ui": {
         "step_table_columns": deepcopy(DEFAULT_STEP_TABLE_COLUMNS),
@@ -338,6 +348,8 @@ def validate_config(config: dict[str, Any]) -> list[str]:
         errors.append("simulation_mode 必须是布尔值")
     if not isinstance(app_cfg.get("auto_loop"), bool):
         errors.append("auto_loop 必须是布尔值")
+    if not isinstance(app_cfg.get("auto_connect", True), bool):
+        errors.append("auto_connect 必须是布尔值")
 
     loop_interval_ms = app_cfg.get("loop_interval_ms")
     if not isinstance(loop_interval_ms, int) or not (0 <= loop_interval_ms <= MAX_TIMING_MS):
@@ -437,8 +449,14 @@ def validate_config(config: dict[str, Any]) -> list[str]:
                     errors.append(f"{prefix} status_key 无效: {status_key}")
                 elif expected_value not in CONDITION_STATUS_VALUES.get(status_key, ()):
                     errors.append(f"{prefix} expected_value 无效: {expected_value}")
-            elif step_type in ("else_branch", "end_if"):
+            elif step_type in ("else_branch", "end_if", "stop"):
                 pass
+            elif step_type == "call_group":
+                group_name = str(step.get("group_name", "")).strip()
+                if not group_name:
+                    errors.append(f"{prefix} group_name 不能为空")
+                elif len(group_name) > 64:
+                    errors.append(f"{prefix} group_name 不能超过 64 个字符")
             elif step_type == "wait":
                 duration_ms = step.get("duration_ms")
                 if not isinstance(duration_ms, int) or not (0 <= duration_ms <= MAX_TIMING_MS):
@@ -563,6 +581,12 @@ def normalize_workflow_steps(
             item["status_key"] = status_key
             item["expected_value"] = expected_value
             item["label"] = condition_check_label(status_key, expected_value)
+        elif step_type == "call_group":
+            group_name = str(raw.get("group_name") or "").strip()
+            item["group_name"] = group_name
+            item["label"] = call_group_label(group_name)
+        elif step_type == "stop":
+            item["label"] = str(raw.get("label") or STEP_TYPE_LABELS["stop"]).strip() or STEP_TYPE_LABELS["stop"]
         elif step_type == "wait":
             item["duration_ms"] = int(
                 raw.get(

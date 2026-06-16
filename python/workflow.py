@@ -5,14 +5,18 @@ import time
 from enum import Enum
 from typing import Any, Callable, Optional
 
+from action_groups import load_action_group
 from config import (
     CONDITION_STATUS_LABELS,
     STEP_TYPE_LABELS,
+    call_group_label,
     condition_value_label,
     pulse_step_label,
 )
 from cutting_master import focus_window_step, is_app_window_keyword, press_hotkey_step, send_hotkey_to_window
 from serial_stm32 import Stm32Client, wait_ms
+
+MAX_CALL_DEPTH = 8
 
 
 def _step_delay_ms(step: dict[str, Any], timings: dict[str, Any] | None = None) -> int:
@@ -50,7 +54,7 @@ def _step_action_duration_ms(step: dict[str, Any], timings: dict[str, Any]) -> i
         return 0
     if step_type == "condition_check":
         return 0
-    if step_type in ("else_branch", "end_if"):
+    if step_type in ("else_branch", "end_if", "call_group", "stop"):
         return 0
     if step_type == "restore_app":
         return 0
@@ -72,6 +76,10 @@ class WorkflowUserAbort(Exception):
     """用户选择停止流程。"""
 
 
+class WorkflowStopCycle(Exception):
+    """显式「停止流程」步骤：正常结束本轮。"""
+
+
 PROMPT_RETRY = "retry"
 PROMPT_SKIP = "skip"
 PROMPT_ABORT = "abort"
@@ -83,7 +91,18 @@ def _step_label(step: dict[str, Any], config: dict[str, Any] | None = None) -> s
     step_type = str(step.get("type", ""))
     if step_type in ("pulse_a", "pulse_b"):
         return pulse_step_label(step_type, config)
+    if step_type == "call_group":
+        return call_group_label(str(step.get("group_name") or ""))
     return str(step.get("label") or STEP_TYPE_LABELS.get(step_type, step_type))
+
+
+class _BranchFrame:
+    __slots__ = ("skip_until_else", "skip_until_end", "condition_met")
+
+    def __init__(self) -> None:
+        self.skip_until_else = False
+        self.skip_until_end = False
+        self.condition_met: bool | None = None
 
 
 def _enabled_steps(config: dict[str, Any]) -> list[dict[str, Any]]:
@@ -125,26 +144,32 @@ class WorkflowRunner:
         self._cycle_progress_ms = 0
         self._step_progress_base_ms = 0
         self._active_step_total_ms = 0
-        self._branch_skip_until_else = False
-        self._branch_skip_until_end = False
-        self._branch_condition_met: bool | None = None
+        self._branch_stack: list[_BranchFrame] = []
+        self._call_stack: list[str] = []
 
     def _reset_branch_state(self) -> None:
-        self._branch_skip_until_else = False
-        self._branch_skip_until_end = False
-        self._branch_condition_met = None
+        self._branch_stack.clear()
+
+    def _current_branch(self) -> _BranchFrame | None:
+        return self._branch_stack[-1] if self._branch_stack else None
 
     @staticmethod
     def _if_block_info(steps: list[dict[str, Any]], if_index: int) -> tuple[bool, bool]:
         has_else = False
         has_end = False
+        depth = 0
         for i in range(if_index + 1, len(steps)):
             step_type = str(steps[i].get("type", "")).strip()
-            if step_type == "end_if":
-                has_end = True
-                break
-            if step_type == "else_branch":
-                has_else = True
+            if step_type == "condition_check":
+                depth += 1
+            elif step_type == "else_branch":
+                if depth == 0:
+                    has_else = True
+            elif step_type == "end_if":
+                if depth == 0:
+                    has_end = True
+                    break
+                depth -= 1
         return has_else, has_end
 
     def _handle_branch_gate(
@@ -157,27 +182,31 @@ class WorkflowRunner:
         """处理分支标记；返回 True 表示本步已消费，不再走普通 execute。"""
         step_type = str(step.get("type", "")).strip()
         label = _step_label(step, config)
+        frame = self._current_branch()
 
-        if self._branch_skip_until_else:
+        if frame is not None and frame.skip_until_else:
             if step_type == "else_branch":
-                self._branch_skip_until_else = False
+                frame.skip_until_else = False
                 self._emit_log("info", "进入否则分支")
                 self._set_step(str(step.get("id", "")), step_type, label)
                 return True
             return True
 
-        if self._branch_skip_until_end:
+        if frame is not None and frame.skip_until_end:
             if step_type == "end_if":
-                self._branch_skip_until_end = False
-                self._branch_condition_met = None
+                self._branch_stack.pop()
                 self._emit_log("info", "结束条件分支")
                 self._set_step(str(step.get("id", "")), step_type, label)
                 return True
             return True
 
         if step_type == "else_branch":
-            if self._branch_condition_met:
-                self._branch_skip_until_end = True
+            if frame is None:
+                self._emit_log("warn", "遇到「否则」但没有对应的「如果」")
+                self._set_step(str(step.get("id", "")), step_type, label)
+                return True
+            if frame.condition_met:
+                frame.skip_until_end = True
                 self._emit_log("info", "条件成立，跳过否则分支")
             else:
                 self._emit_log("info", "进入否则分支")
@@ -185,7 +214,10 @@ class WorkflowRunner:
             return True
 
         if step_type == "end_if":
-            self._reset_branch_state()
+            if frame is not None:
+                self._branch_stack.pop()
+            else:
+                self._emit_log("warn", "遇到「结束如果」但没有对应的「如果」")
             self._emit_log("info", "结束条件分支")
             self._set_step(str(step.get("id", "")), step_type, label)
             return True
@@ -494,6 +526,16 @@ class WorkflowRunner:
         except WorkflowUserAbort:
             self._set_phase(Phase.ABORTED, "流程已停止")
             self._emit({"event": "cycle_aborted", "loop_index": loop_index})
+        except WorkflowStopCycle:
+            self._set_phase(Phase.DONE, "流程已停止")
+            self._emit(
+                {
+                    "event": "cycle_done",
+                    "loop_index": loop_index,
+                    "will_repeat": False,
+                    "stopped": True,
+                }
+            )
         except Exception as exc:
             if self._cancel.is_set():
                 self._set_phase(Phase.ABORTED, "流程已中止")
@@ -537,12 +579,30 @@ class WorkflowRunner:
 
     def _run_one_cycle(self, config: dict[str, Any], loop_index: int) -> None:
         timings = config["timings_ms"]
-        cm = config["cutting_master"]
         total_ms = _cycle_total_ms(config)
         self._begin_cycle_progress(total_ms)
         self._reset_branch_state()
+        self._call_stack.clear()
         cycle_start = time.monotonic()
         steps = _enabled_steps(config)
+        self._run_steps(steps, config, loop_index, cycle_start, call_depth=0)
+
+        label = f"第 {loop_index} 轮完成" if self._auto_loop else "本轮完成"
+        self._active_step_id = None
+        self._set_phase(Phase.DONE, label)
+
+    def _run_steps(
+        self,
+        steps: list[dict[str, Any]],
+        config: dict[str, Any],
+        loop_index: int,
+        cycle_start: float,
+        *,
+        call_depth: int = 0,
+    ) -> None:
+        timings = config["timings_ms"]
+        cm = config["cutting_master"]
+        total_ms = self._cycle_total_ms
 
         for idx, step in enumerate(steps):
             if self._handle_branch_gate(step, steps, idx, config):
@@ -568,9 +628,21 @@ class WorkflowRunner:
                             has_end_if=has_end,
                         )
                         self._complete_step_progress(step, timings)
+                    elif step_type == "call_group":
+                        self._do_call_group(
+                            step,
+                            config,
+                            loop_index,
+                            cycle_start,
+                            call_depth=call_depth,
+                        )
+                    elif step_type == "stop":
+                        self._do_stop(step, config)
                     else:
                         self._execute_step(step, cm, timings, total_ms, cycle_start, config)
                     break
+                except WorkflowStopCycle:
+                    raise
                 except WorkflowUserAbort:
                     raise
                 except Exception as exc:
@@ -585,9 +657,62 @@ class WorkflowRunner:
                         break
                     raise WorkflowUserAbort(str(exc)) from exc
 
-        label = f"第 {loop_index} 轮完成" if self._auto_loop else "本轮完成"
-        self._active_step_id = None
-        self._set_phase(Phase.DONE, label)
+    def _do_call_group(
+        self,
+        step: dict[str, Any],
+        config: dict[str, Any],
+        loop_index: int,
+        cycle_start: float,
+        *,
+        call_depth: int,
+    ) -> None:
+        if call_depth >= MAX_CALL_DEPTH:
+            raise RuntimeError(f"动作组调用嵌套超过 {MAX_CALL_DEPTH} 层")
+
+        group_name = str(step.get("group_name") or "").strip()
+        if not group_name:
+            raise RuntimeError("调用动作组未指定名称")
+        if group_name in self._call_stack:
+            raise RuntimeError(f"动作组「{group_name}」不能递归调用")
+
+        step_id = str(step.get("id", ""))
+        step_type = str(step.get("type", ""))
+        label = _step_label(step, config)
+        self._active_step_id = step_id
+        self._begin_step_progress()
+        self._set_step(step_id, step_type, label)
+
+        payload = load_action_group(group_name)
+        sub_steps = [item for item in payload.get("workflow_steps") or [] if item.get("enabled") is True]
+        if not sub_steps:
+            raise RuntimeError(f"动作组「{group_name}」没有已启用的步骤")
+
+        self._emit_log("info", f"调用动作组「{group_name}」（{len(sub_steps)} 步）")
+        self._call_stack.append(group_name)
+        try:
+            self._run_steps(
+                sub_steps,
+                config,
+                loop_index,
+                cycle_start,
+                call_depth=call_depth + 1,
+            )
+        finally:
+            if self._call_stack and self._call_stack[-1] == group_name:
+                self._call_stack.pop()
+
+        self._complete_step_progress(step, config["timings_ms"])
+
+    def _do_stop(self, step: dict[str, Any], config: dict[str, Any]) -> None:
+        step_id = str(step.get("id", ""))
+        step_type = str(step.get("type", ""))
+        label = _step_label(step, config)
+        self._active_step_id = step_id
+        self._begin_step_progress()
+        self._set_step(step_id, step_type, label)
+        self._emit_log("info", "执行停止流程")
+        self._complete_step_progress(step, config["timings_ms"])
+        raise WorkflowStopCycle("流程已停止")
 
     def _execute_step(
         self,
@@ -994,6 +1119,10 @@ class WorkflowRunner:
         key_label = CONDITION_STATUS_LABELS.get(status_key, status_key)
         expected_label = condition_value_label(status_key, expected)
 
+        self._branch_stack.append(_BranchFrame())
+        frame = self._current_branch()
+        assert frame is not None
+
         self._emit_progress(
             step_id,
             step_type,
@@ -1010,7 +1139,7 @@ class WorkflowRunner:
         actual_label = condition_value_label(status_key, actual)
 
         if actual == expected:
-            self._branch_condition_met = True
+            frame.condition_met = True
             self._emit_log("info", f"判断通过: {key_label} = {expected_label}")
             self._emit_progress(
                 step_id,
@@ -1024,10 +1153,10 @@ class WorkflowRunner:
             )
             return
 
-        self._branch_condition_met = False
+        frame.condition_met = False
 
         if has_else_branch:
-            self._branch_skip_until_else = True
+            frame.skip_until_else = True
             self._emit_log(
                 "info",
                 f"条件不成立，跳过「则」分支: 当前{key_label}=「{actual_label}」，期望「{expected_label}」",
@@ -1045,7 +1174,7 @@ class WorkflowRunner:
             return
 
         if has_end_if:
-            self._branch_skip_until_end = True
+            frame.skip_until_end = True
             self._emit_log(
                 "info",
                 f"条件不成立，跳到结束如果: 当前{key_label}=「{actual_label}」，期望「{expected_label}」",

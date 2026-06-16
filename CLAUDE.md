@@ -60,7 +60,8 @@ Text-based, line-delimited with `\r\n`. Commands are case-insensitive (uppercase
 | `ESTOP` | `OK:ESTOP` | Motor stop + relays off |
 | `PULSE_A:200` | `OK` | Relay A pulse for N ms |
 | `PULSE_B:200` | `OK` | Relay B pulse for N ms |
-| `STATUS` | `STATUS:IDLE` | Query motor/relay state |
+| `STATUS` | `STATUS:IDLE;ROD:HOME\|AWAY` | Query motor/relay + rod position |
+| `ROD_SENSOR` | `ROD:HOME` or `ROD:AWAY` | Slot sensor on PA8 (blocked = home) |
 
 ### Key Python modules
 
@@ -88,19 +89,25 @@ Text-based, line-delimited with `\r\n`. Commands are case-insensitive (uppercase
 | PA3 | Relay IN4 / K4 (origin) | Output |
 | PA4 | LED retract | Output |
 | PA5 | LED extend | Output |
-| PA6 | LED serial/COM status | Output |
-| PA7 | Button retract | Input (pull-up, active low) |
-| PA8 | Button extend | Input (pull-up, active low) |
+| PA6 | LCD 背光 BLK (nologo) *or* COM LED | Output | nologo: PA6=backlight only; standard board: PA6=COM LED |
+| PA7 | LCD RES (nologo) *or* toggle button | Output / Input | nologo: PA7=LCD reset; standard: PA7→GND button |
+| PB8 | Toggle button | Input (pull-up, active low) | nologo board only (replaces PA7) |
+| PB9 | COM / serial status LED | Output | nologo board only (replaces PA6 for D3) |
+| PB0–PB1, PB10–PB11 | Onboard ST7735 LCD | SPI/GPIO | nologo FPC (DC/CS/SCL/SDA); do not rewire |
+| PB12–PB15 | Onboard W25Q64 Flash | SPI2 | Do not use in firmware |
+| PA8 | Rod slot sensor DO | Input (pull-up) | Blocked = paper pressed (`ROD:HOME`); clear = not pressed |
 | PA9 | USART1 TX (USB-TTL) | AF output |
 | PA10 | USART1 RX (USB-TTL) | Input |
 
 **Key firmware modules in `firmware/User/`:**
-- `main.c` — Init sequence: Motor (first, pull PA0/PA1 low) → Board → Relay → Led → Serial → Protocol. Main loop: `Protocol_Poll()` + `Relay_Tick()` + `Led_Tick()`.
+- `main.c` — Init sequence: Motor (first, pull PA0/PA1 low) → Board → Relay → Led → RodSensor → Serial → Protocol. Main loop: `Protocol_Poll()` + `Relay_Tick()` + `Led_Tick()` + `RodSensor_Tick()`.
 - `protocol.c` — Parses text commands (case-insensitive), dispatches to motor/relay modules. `Protocol_IsCommActive()` for COM LED (3s window).
 - `motor.c` — H-bridge relays (jumpers H): retract IN1 only; extend IN2 only; stop both released; 80ms before reverse.
-- `led.c` — PA4/PA5 motor status LEDs; PA6 COM LED (fast blink offline, PWM breathing when comm active).
+- `led.c` — PA4/PA5 motor status LEDs; COM LED on PB9 (nologo) or PA6 (standard): fast blink offline, PWM breathing when comm active.
 - `relay.c` — Pulse-based relay control with tick-based auto-off timing.
-- `buttons.c` — PA7/PA8 physical buttons: hold to retract/extend, release to stop; debounced, coexists with serial motor commands.
+- `buttons.c` — PB8 toggle (nologo) or PA7 (standard): 3s retract / 3s extend alternating; debounced, coexists with serial motor commands.
+- `rod_sensor.c` — PA8 slot sensor (LM393 DO); blocked = paper pressed (`ROD:HOME`); auto-stops motor when retracting and home detected.
+- `lcd_st7735.c` / `lcd_ui.c` — Onboard 0.96" ST7735 TFT on nologo board (`lcd_config.h`); shows 压纸/USB/电机 status in Chinese.
 - `board.h` — All pin definitions consolidated here.
 - `usart_serial.c` — USART1 at 115200 baud, line-buffered receive.
 

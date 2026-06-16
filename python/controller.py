@@ -33,18 +33,34 @@ class ControllerService:
         self.workflow = WorkflowRunner(self.emit, client_lock=self._client_lock)
         self._write_lock = threading.Lock()
         self._heartbeat_stop = threading.Event()
+        self._heartbeat_interval_s = 0.5
         self._ensure_client()
         self._start_heartbeat()
         atexit.register(self._shutdown)
 
     def _start_heartbeat(self) -> None:
         def loop() -> None:
-            while not self._heartbeat_stop.wait(1.5):
+            while not self._heartbeat_stop.wait(self._heartbeat_interval_s):
                 try:
                     with self._client_lock:
                         if self.client is None or not self.client.connected:
                             continue
                         self.client.ping()
+                        status_line = self.client.status()
+                    parsed = Stm32Client.parse_device_status(status_line)
+                    payload = {
+                        "event": "device_status",
+                        "motor": parsed.get("motor"),
+                        "position": parsed.get("rod_position"),
+                        "raw": status_line,
+                    }
+                    self.emit(payload)
+                    if parsed.get("rod_position"):
+                        self.emit({
+                            "event": "rod_sensor",
+                            "position": parsed["rod_position"],
+                            "raw": status_line,
+                        })
                 except Exception:
                     pass
 
@@ -334,6 +350,29 @@ class ControllerService:
                         raise RuntimeError("未连接")
                     response = self.client.ping()
                 reply({"event": "serial_ping", "response": response})
+                return
+
+            if cmd == "rod_sensor":
+                with self._client_lock:
+                    if self.client is None or not self.client.connected:
+                        raise RuntimeError("未连接")
+                    response = self.client.rod_sensor()
+                position = Stm32Client.parse_rod_position(response)
+                reply({"event": "rod_sensor", "position": position, "raw": response})
+                return
+
+            if cmd == "device_status":
+                with self._client_lock:
+                    if self.client is None or not self.client.connected:
+                        raise RuntimeError("未连接")
+                    response = self.client.status()
+                parsed = Stm32Client.parse_device_status(response)
+                reply({
+                    "event": "device_status",
+                    "motor": parsed.get("motor"),
+                    "position": parsed.get("rod_position"),
+                    "raw": response,
+                })
                 return
 
             if cmd == "list_action_groups":

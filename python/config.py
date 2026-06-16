@@ -17,6 +17,9 @@ STEP_TYPES = (
     "pulse_b",
     "wait",
     "confirm_dialog",
+    "condition_check",
+    "else_branch",
+    "end_if",
 )
 
 STEP_TYPE_LABELS: dict[str, str] = {
@@ -29,7 +32,46 @@ STEP_TYPE_LABELS: dict[str, str] = {
     "pulse_b": "模拟【按键A】",
     "wait": "等待",
     "confirm_dialog": "弹窗确认",
+    "condition_check": "如果",
+    "else_branch": "否则",
+    "end_if": "结束如果",
 }
+
+CONDITION_STATUS_KEYS = ("paper", "motor", "usb")
+
+CONDITION_STATUS_VALUES: dict[str, tuple[str, ...]] = {
+    "paper": ("home", "away"),
+    "motor": ("idle", "retract", "extend", "relay"),
+    "usb": ("connected",),
+}
+
+CONDITION_STATUS_LABELS: dict[str, str] = {
+    "paper": "压纸",
+    "motor": "电机",
+    "usb": "USB",
+}
+
+CONDITION_VALUE_LABELS: dict[tuple[str, str], str] = {
+    ("paper", "home"): "压纸中",
+    ("paper", "away"): "未压纸",
+    ("motor", "idle"): "停止",
+    ("motor", "retract"): "缩回",
+    ("motor", "extend"): "伸出",
+    ("motor", "relay"): "继电器",
+    ("usb", "connected"): "已连接",
+}
+
+
+def condition_value_label(status_key: str, value: str | None) -> str:
+    if not value:
+        return "未知"
+    return CONDITION_VALUE_LABELS.get((status_key, str(value)), str(value))
+
+
+def condition_check_label(status_key: str, expected_value: str) -> str:
+    key_label = CONDITION_STATUS_LABELS.get(status_key, status_key)
+    val_label = condition_value_label(status_key, expected_value)
+    return f"如果·{key_label}={val_label}"
 
 DEFAULT_BUTTON_NAMES: dict[str, str] = {
     "button_a": "按键A",
@@ -135,6 +177,11 @@ def step_delay_ms_from_raw(raw: dict[str, Any], step_type: str, timings: dict[st
 
 CONFIRM_DIALOG_DEFAULTS: dict[str, Any] = {
     "prompt_text": "请确认后继续",
+}
+
+CONDITION_CHECK_DEFAULTS: dict[str, str] = {
+    "status_key": "paper",
+    "expected_value": "home",
 }
 
 WAIT_DEFAULTS: dict[str, Any] = {
@@ -383,6 +430,15 @@ def validate_config(config: dict[str, Any]) -> list[str]:
                     errors.append(f"{prefix} prompt_text 不能为空")
                 elif len(prompt_text) > 500:
                     errors.append(f"{prefix} prompt_text 不能超过 500 个字符")
+            elif step_type == "condition_check":
+                status_key = str(step.get("status_key", "")).strip()
+                expected_value = str(step.get("expected_value", "")).strip()
+                if status_key not in CONDITION_STATUS_KEYS:
+                    errors.append(f"{prefix} status_key 无效: {status_key}")
+                elif expected_value not in CONDITION_STATUS_VALUES.get(status_key, ()):
+                    errors.append(f"{prefix} expected_value 无效: {expected_value}")
+            elif step_type in ("else_branch", "end_if"):
+                pass
             elif step_type == "wait":
                 duration_ms = step.get("duration_ms")
                 if not isinstance(duration_ms, int) or not (0 <= duration_ms <= MAX_TIMING_MS):
@@ -409,6 +465,31 @@ def validate_config(config: dict[str, Any]) -> list[str]:
             if not isinstance(delay_ms, int) or not (0 <= delay_ms <= MAX_TIMING_MS):
                 errors.append(f"{prefix} delay_ms 必须是 0–{MAX_TIMING_MS} 的整数")
 
+        if isinstance(steps, list):
+            errors.extend(validate_branch_structure(steps))
+
+    return errors
+
+
+def validate_branch_structure(steps: list[dict[str, Any]]) -> list[str]:
+    """检查 如果/否则/结束如果 是否成对。"""
+    errors: list[str] = []
+    depth = 0
+    for index, step in enumerate(steps):
+        step_type = str(step.get("type", "")).strip()
+        prefix = f"步骤 #{index + 1}"
+        if step_type == "condition_check":
+            depth += 1
+        elif step_type == "else_branch":
+            if depth == 0:
+                errors.append(f"{prefix}「否则」没有对应的「如果」")
+        elif step_type == "end_if":
+            if depth == 0:
+                errors.append(f"{prefix}「结束如果」没有对应的「如果」")
+            else:
+                depth -= 1
+    if depth > 0:
+        errors.append(f"有 {depth} 个「如果」缺少「结束如果」")
     return errors
 
 
@@ -467,6 +548,21 @@ def normalize_workflow_steps(
             item["prompt_text"] = str(
                 raw.get("prompt_text") or raw.get("message") or CONFIRM_DIALOG_DEFAULTS["prompt_text"]
             ).strip() or CONFIRM_DIALOG_DEFAULTS["prompt_text"]
+        elif step_type == "condition_check":
+            status_key = str(
+                raw.get("status_key") or CONDITION_CHECK_DEFAULTS["status_key"]
+            ).strip()
+            if status_key not in CONDITION_STATUS_KEYS:
+                status_key = CONDITION_CHECK_DEFAULTS["status_key"]
+            allowed = CONDITION_STATUS_VALUES.get(status_key, ())
+            expected_value = str(
+                raw.get("expected_value") or CONDITION_CHECK_DEFAULTS["expected_value"]
+            ).strip()
+            if expected_value not in allowed:
+                expected_value = allowed[0] if allowed else CONDITION_CHECK_DEFAULTS["expected_value"]
+            item["status_key"] = status_key
+            item["expected_value"] = expected_value
+            item["label"] = condition_check_label(status_key, expected_value)
         elif step_type == "wait":
             item["duration_ms"] = int(
                 raw.get(

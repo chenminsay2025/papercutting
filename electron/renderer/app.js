@@ -46,6 +46,9 @@ const STEP_TYPE_META = {
   pulse_b: { testStep: "pulse_b" },
   wait: { label: "等待", testStep: "wait" },
   confirm_dialog: { label: "弹窗确认" },
+  condition_check: { label: "如果" },
+  else_branch: { label: "否则" },
+  end_if: { label: "结束如果" },
 };
 
 const STEP_DEFAULTS = {
@@ -58,7 +61,80 @@ const STEP_DEFAULTS = {
   send_hotkey: { hotkey: "ctrl+p", delay_ms: 200, press_count: 1, press_interval_ms: 0 },
   restore_app: { window_keyword: "CutPPaper", delay_ms: 0 },
   confirm_dialog: { prompt_text: "请确认后继续" },
+  condition_check: { status_key: "paper", expected_value: "home" },
 };
+
+const CONDITION_STATUS_KEYS = [
+  { value: "paper", label: "压纸" },
+  { value: "motor", label: "电机" },
+  { value: "usb", label: "USB" },
+];
+
+const CONDITION_STATUS_OPTIONS = {
+  paper: [
+    { value: "home", label: "压纸中" },
+    { value: "away", label: "未压纸" },
+  ],
+  motor: [
+    { value: "idle", label: "停止" },
+    { value: "retract", label: "缩回" },
+    { value: "extend", label: "伸出" },
+    { value: "relay", label: "继电器" },
+  ],
+  usb: [
+    { value: "connected", label: "已连接" },
+  ],
+};
+
+function getConditionValueLabel(statusKey, expectedValue) {
+  const options = CONDITION_STATUS_OPTIONS[statusKey] || [];
+  return options.find((item) => item.value === expectedValue)?.label || expectedValue || "—";
+}
+
+function updateConditionStepLabel(step) {
+  if (step?.type !== "condition_check") return;
+  const keyLabel = CONDITION_STATUS_KEYS.find((item) => item.value === step.status_key)?.label || step.status_key;
+  const valLabel = getConditionValueLabel(step.status_key, step.expected_value);
+  step.label = `如果·${keyLabel}=${valLabel}`;
+}
+
+function computeBranchLayout(steps) {
+  const layout = steps.map(() => ({}));
+  const stack = [];
+  for (let i = 0; i < steps.length; i++) {
+    const type = steps[i].type;
+    if (type === "condition_check") {
+      stack.push({ ifIdx: i });
+      layout[i].role = "if";
+    } else if (type === "else_branch") {
+      if (stack.length) {
+        stack[stack.length - 1].elseIdx = i;
+      }
+      layout[i].role = "else";
+    } else if (type === "end_if") {
+      if (!stack.length) {
+        layout[i].role = "endif";
+        layout[i].invalid = true;
+        continue;
+      }
+      const block = stack.pop();
+      block.endIdx = i;
+      layout[i].role = "endif";
+      const elseIdx = block.elseIdx ?? -1;
+      const thenEnd = elseIdx >= 0 ? elseIdx : i;
+      for (let j = block.ifIdx + 1; j < thenEnd; j++) {
+        layout[j].zone = "then";
+      }
+      if (elseIdx >= 0) {
+        for (let j = elseIdx + 1; j < i; j++) {
+          layout[j].zone = "else";
+        }
+      }
+    }
+  }
+  layout.unbalanced = stack.length > 0;
+  return layout;
+}
 
 const STEP_NOTE_DEFAULT = "";
 const STEP_DELAY_DEFAULT = 0;
@@ -84,7 +160,7 @@ const DEFAULT_STEP_TABLE_COLUMNS = {
 const STEP_TABLE_COLUMN_LIMITS = { min: 32, max: 480 };
 
 const INSERT_STEP_TYPES = [
-  "retract", "pulse_a", "focus_window", "send_hotkey", "restore_app", "extend", "pulse_b", "wait", "confirm_dialog",
+  "retract", "pulse_a", "focus_window", "send_hotkey", "restore_app", "extend", "pulse_b", "wait", "confirm_dialog", "condition_check", "else_branch", "end_if",
 ];
 
 function getButtonNames(config = state.config) {
@@ -129,6 +205,14 @@ const state = {
   running: false,
   connected: false,
   connectedPort: "",
+  rodPosition: null,
+  motorState: null,
+  pythonReady: false,
+  pythonExit: false,
+  phaseLabel: "空闲",
+  progressElapsed: 0,
+  progressTotal: 0,
+  progressRatio: null,
   simulation: false,
   currentStepId: null,
   currentStepProgress: 0,
@@ -156,9 +240,7 @@ const state = {
 };
 
 const els = {
-  pythonStatus: document.getElementById("pythonStatus"),
-  modeStatus: document.getElementById("modeStatus"),
-  connStatusText: document.getElementById("connStatusText"),
+  connStatusDot: document.getElementById("connStatusDot"),
   connBar: document.getElementById("connBar"),
   logBtn: document.getElementById("logBtn"),
   settingsBtn: document.getElementById("settingsBtn"),
@@ -202,8 +284,6 @@ const els = {
   manageGroupsBackdrop: document.getElementById("manageGroupsBackdrop"),
   manageGroupsCloseBtn: document.getElementById("manageGroupsCloseBtn"),
   manageGroupsList: document.getElementById("manageGroupsList"),
-  phaseLabel: document.getElementById("phaseLabel"),
-  progressText: document.getElementById("progressText"),
   cycleHint: document.getElementById("cycleHint"),
   progressFill: document.getElementById("progressFill"),
   startBtn: document.getElementById("startBtn"),
@@ -251,11 +331,6 @@ function log(level, message) {
   if (window.cutppaper.logLine) {
     window.cutppaper.logLine(line);
   }
-}
-
-function setBadge(el, className, text) {
-  el.className = `badge ${className}`;
-  el.textContent = text;
 }
 
 function newStepId() {
@@ -333,6 +408,18 @@ function createStep(type, config) {
   } else if (type === "confirm_dialog") {
     const lastConfirm = findLastStep("confirm_dialog");
     step.prompt_text = lastConfirm?.prompt_text || defaults.prompt_text || "请确认后继续";
+  } else if (type === "condition_check") {
+    const lastCondition = findLastStep("condition_check");
+    step.status_key = lastCondition?.status_key || defaults.status_key || "paper";
+    const options = CONDITION_STATUS_OPTIONS[step.status_key] || CONDITION_STATUS_OPTIONS.paper;
+    const fallback = options[0]?.value || "home";
+    step.expected_value = lastCondition?.expected_value || defaults.expected_value || fallback;
+    if (!options.some((item) => item.value === step.expected_value)) {
+      step.expected_value = fallback;
+    }
+    updateConditionStepLabel(step);
+  } else if (type === "else_branch" || type === "end_if") {
+    // 分支标记，无额外字段
   } else if (type === "wait") {
     const lastWait = findLastStep("wait");
     step.duration_ms = Number(
@@ -417,6 +504,17 @@ function normalizeWorkflowSteps(steps, config) {
       normalized.prompt_text = String(
         step.prompt_text || step.message || STEP_DEFAULTS.confirm_dialog.prompt_text
       ).trim() || STEP_DEFAULTS.confirm_dialog.prompt_text;
+    } else if (type === "condition_check") {
+      normalized.status_key = String(step.status_key || STEP_DEFAULTS.condition_check.status_key).trim();
+      if (!CONDITION_STATUS_OPTIONS[normalized.status_key]) {
+        normalized.status_key = STEP_DEFAULTS.condition_check.status_key;
+      }
+      const options = CONDITION_STATUS_OPTIONS[normalized.status_key] || [];
+      normalized.expected_value = String(step.expected_value || options[0]?.value || "home").trim();
+      if (!options.some((item) => item.value === normalized.expected_value)) {
+        normalized.expected_value = options[0]?.value || "home";
+      }
+      updateConditionStepLabel(normalized);
     } else {
       const legacyKey = LEGACY_TIMING_KEYS[type] || type;
       normalized.duration_ms = Number(step.duration_ms ?? timings[legacyKey] ?? STEP_DEFAULTS[type]?.duration_ms ?? 1000);
@@ -507,6 +605,10 @@ function stepDurationMs(step) {
     actionMs = (Number(step.duration_ms) || 0) + 30;
   } else if (step.type === "confirm_dialog") {
     actionMs = 0;
+  } else if (step.type === "condition_check") {
+    actionMs = 0;
+  } else if (step.type === "else_branch" || step.type === "end_if") {
+    actionMs = 0;
   } else {
     actionMs = Number(step.duration_ms) || 0;
   }
@@ -560,6 +662,15 @@ function fitAllStepNumberInputs(root = els.stepEditor) {
   root.querySelectorAll(".step-input-num").forEach(fitStepNumberInputWidth);
 }
 
+function renderInlineSelect(label, field, step, index, canEdit, options) {
+  const dis = canEdit ? "" : "disabled";
+  const value = step[field] ?? options[0]?.value ?? "";
+  const opts = options.map((item) => (
+    `<option value="${escAttr(item.value)}"${item.value === value ? " selected" : ""}>${escAttr(item.label)}</option>`
+  )).join("");
+  return `<label class="step-inline-field"><span class="step-field-label">${label}</span><select class="step-input-select" data-field="${field}" data-index="${index}" ${dis}>${opts}</select></label>`;
+}
+
 function renderStepParams(step, index, canEdit) {
   let inner = "";
   if (step.type === "focus_window") {
@@ -577,6 +688,17 @@ function renderStepParams(step, index, canEdit) {
     `;
   } else if (step.type === "confirm_dialog") {
     inner = renderInlineField("提示", "prompt_text", step, index, canEdit, "step-input-text step-input-prompt");
+  } else if (step.type === "condition_check") {
+    const statusKey = step.status_key || "paper";
+    const valueOptions = CONDITION_STATUS_OPTIONS[statusKey] || CONDITION_STATUS_OPTIONS.paper;
+    inner = `
+      ${renderInlineSelect("状态", "status_key", step, index, canEdit, CONDITION_STATUS_KEYS)}
+      ${renderInlineSelect("等于", "expected_value", step, index, canEdit, valueOptions)}
+    `;
+  } else if (step.type === "else_branch") {
+    inner = `<span class="branch-marker-hint">条件不成立时执行以下步骤</span>`;
+  } else if (step.type === "end_if") {
+    inner = `<span class="branch-marker-hint">条件分支结束</span>`;
   } else if (step.type === "wait") {
     inner = renderInlineNumber("等待", "duration_ms", step, index, canEdit, 0, 100);
   } else {
@@ -749,6 +871,7 @@ function renderStepRowHtml(step, index, canEdit, { preview = false } = {}) {
 
 function renderStepEditor() {
   const canEdit = !state.running;
+  const branchLayout = computeBranchLayout(state.workflowSteps);
 
   els.stepEditor.innerHTML = state.workflowSteps.map((step, index) => {
     let status = "pending";
@@ -756,8 +879,15 @@ function renderStepEditor() {
     else if (state.doneStepIds.has(step.id)) status = "done";
     if (!step.enabled) status = "disabled";
 
+    const branch = branchLayout[index] || {};
+    const branchClass = [
+      branch.zone ? `branch-zone-${branch.zone}` : "",
+      branch.role ? `branch-role-${branch.role}` : "",
+      branch.invalid ? "branch-invalid" : "",
+    ].filter(Boolean).join(" ");
+
     return `
-      <tr class="step-row ${status}" data-step-id="${step.id}" data-index="${index}">
+      <tr class="step-row ${status} ${branchClass}" data-step-id="${step.id}" data-index="${index}">
         ${renderStepRowHtml(step, index, canEdit)}
       </tr>
     `;
@@ -1254,7 +1384,13 @@ function applyButtonNamesFromForm() {
 
 function addStepOfType(type) {
   if (state.running || !type) return;
-  state.workflowSteps.push(createStep(type, state.config));
+  if (type === "condition_check") {
+    state.workflowSteps.push(createStep("condition_check", state.config));
+    state.workflowSteps.push(createStep("else_branch", state.config));
+    state.workflowSteps.push(createStep("end_if", state.config));
+  } else {
+    state.workflowSteps.push(createStep(type, state.config));
+  }
   recalcTotalMs();
   updateControls();
   closeAllMenus();
@@ -1445,6 +1581,58 @@ function updateCycleHint() {
   } else {
     els.cycleHint.textContent = `${base}${suffix}`;
   }
+  refreshStatusPanel();
+}
+
+function parseRodPosition(raw) {
+  const upper = String(raw || "").toUpperCase();
+  if (upper.includes("ROD:HOME")) return "home";
+  if (upper.includes("ROD:AWAY")) return "away";
+  return null;
+}
+
+function buildStatusSnapshot() {
+  return {
+    connected: state.connected,
+    simulation: state.simulation,
+    connectedPort: state.connectedPort,
+    baudrate: Number(els.baudrate?.value) || 115200,
+    timeoutMs: Number(els.timeoutMs?.value) || 2000,
+    rodPosition: state.rodPosition,
+    motorState: state.motorState,
+    pythonReady: state.pythonReady,
+    pythonExit: state.pythonExit,
+    running: state.running,
+    waitingLoop: state.waitingLoop,
+    loopIndex: state.loopIndex,
+    phaseLabel: state.phaseLabel,
+    progressElapsed: state.progressElapsed,
+    progressTotal: state.progressTotal,
+    progressRatio: state.progressRatio,
+    cycleHint: els.cycleHint?.textContent || "",
+  };
+}
+
+function updateConnIndicator() {
+  if (!els.connBar) return;
+  els.connBar.classList.toggle("is-connected", state.connected);
+  els.connBar.title = state.connected
+    ? (state.simulation ? "USB · 模拟已连接" : `USB · ${state.connectedPort || "已连接"}`)
+    : "USB · 未连接";
+}
+
+function refreshStatusPanel() {
+  StatusPanel.render(buildStatusSnapshot());
+  updateConnIndicator();
+}
+
+async function refreshDeviceStatus() {
+  if (!state.connected) return;
+  try {
+    await sendCommand({ cmd: "device_status" });
+  } catch (err) {
+    log("warn", err.message || "刷新设备状态失败");
+  }
 }
 
 function getConnectionDetailLabel() {
@@ -1456,21 +1644,6 @@ function getConnectionDetailLabel() {
   const baud = els.baudrate.value || 115200;
   const timeout = els.timeoutMs.value || 2000;
   return `${port} · ${baud} · 超时 ${timeout}ms`;
-}
-
-function updateConnectionBar() {
-  if (state.connected) {
-    const label = getConnectionDetailLabel();
-    els.connStatusText.textContent = label;
-    els.connStatusText.className = "conn-status is-connected";
-    els.connBar.title = "点击查看连接详情";
-    els.connBar.classList.add("is-connected");
-  } else {
-    els.connStatusText.textContent = "未连接";
-    els.connStatusText.className = "conn-status is-disconnected";
-    els.connBar.title = "点击连接设备";
-    els.connBar.classList.remove("is-connected");
-  }
 }
 
 function updateConnectionModal() {
@@ -1504,8 +1677,8 @@ function updateControls() {
   els.loopMenuBtn.disabled = state.running;
   els.serialPanel.classList.toggle("disabled", state.simulation);
   els.connBar.disabled = state.running;
-  updateConnectionBar();
   updateConnectionModal();
+  refreshStatusPanel();
   updateSettingsModal();
   updateStartBtnLabel();
   renderStepEditor();
@@ -1558,6 +1731,9 @@ function readWorkflowStepsFromState() {
       copy.press_interval_ms = Math.max(0, Number(step.press_interval_ms) || 0);
     } else if (step.type === "confirm_dialog") {
       copy.prompt_text = String(step.prompt_text || "请确认后继续").trim() || "请确认后继续";
+    } else if (step.type === "condition_check") {
+      copy.status_key = String(step.status_key || "paper").trim();
+      copy.expected_value = String(step.expected_value || "home").trim();
     } else {
       copy.duration_ms = Number(step.duration_ms) || 0;
     }
@@ -1581,7 +1757,6 @@ function applyConfigToForm(config) {
   refreshStartHotkeyUi(getStartHotkey(config));
   void applyStartHotkeyRegistration(getStartHotkey(config));
   recalcTotalMs();
-  updateModeBadge();
   initAddStepMenu();
   updateControls();
 }
@@ -1623,24 +1798,12 @@ function readConfigFromForm() {
   };
 }
 
-function updateModeBadge() {
-  if (state.simulation) {
-    setBadge(els.modeStatus, "badge-sim", "模拟模式");
-  } else {
-    setBadge(els.modeStatus, "badge-off", "硬件模式");
-  }
-}
-
 function updateProgress(elapsedMs, totalMs, label, progressRatio) {
-  const total = Math.max(0, Number(totalMs) || 0);
-  const elapsed = Math.max(0, Number(elapsedMs) || 0);
-  const progress = progressRatio != null
-    ? Math.min(1, Math.max(0, Number(progressRatio)))
-    : (total > 0 ? Math.min(1, elapsed / total) : 0);
-  const shownElapsed = total > 0 ? Math.min(elapsed, total) : elapsed;
-  els.progressFill.style.width = `${progress * 100}%`;
-  els.progressText.textContent = total > 0 ? `${shownElapsed}/${total}ms` : `${shownElapsed}ms`;
-  els.phaseLabel.textContent = label;
+  state.phaseLabel = label || "空闲";
+  state.progressElapsed = elapsedMs;
+  state.progressTotal = totalMs;
+  state.progressRatio = progressRatio;
+  refreshStatusPanel();
 }
 
 function markDoneBeforeStep(stepId) {
@@ -1668,7 +1831,7 @@ let promptInFlight = null;
 let confirmPromptResolver = null;
 let confirmPromptKeyHandler = null;
 
-function showCustomConfirmDialog({ title, message, detail, stepLabel }) {
+function showCustomConfirmDialog({ title, message, detail, stepLabel, okLabel, cancelLabel }) {
   return new Promise((resolve) => {
     if (confirmPromptResolver) {
       closeCustomConfirmDialog("cancel");
@@ -1677,6 +1840,12 @@ function showCustomConfirmDialog({ title, message, detail, stepLabel }) {
 
     els.confirmPromptStep.textContent = stepLabel || title || "弹窗确认";
     els.confirmPromptMessage.textContent = message || "请确认后继续";
+    if (els.confirmPromptOkBtn) {
+      els.confirmPromptOkBtn.textContent = okLabel || "确认继续";
+    }
+    if (els.confirmPromptCancelBtn) {
+      els.confirmPromptCancelBtn.textContent = cancelLabel || "取消";
+    }
     if (detail) {
       els.confirmPromptDetail.textContent = detail;
       els.confirmPromptDetail.classList.remove("hidden");
@@ -1715,6 +1884,8 @@ function closeCustomConfirmDialog(action) {
   }
   els.confirmPromptModal.classList.add("hidden");
   els.confirmPromptModal.setAttribute("aria-hidden", "true");
+  if (els.confirmPromptOkBtn) els.confirmPromptOkBtn.textContent = "确认继续";
+  if (els.confirmPromptCancelBtn) els.confirmPromptCancelBtn.textContent = "取消";
   if (confirmPromptResolver) {
     confirmPromptResolver(action);
     confirmPromptResolver = null;
@@ -1986,17 +2157,19 @@ async function handleUserPrompt(payload) {
   if (promptInFlight === payload.prompt_id) return;
   promptInFlight = payload.prompt_id;
   state.waitingPrompt = true;
-  els.phaseLabel.textContent = `等待确认: ${payload.step_label || "步骤"}`;
+  updateProgress(0, state.totalMs, `等待确认: ${payload.step_label || "步骤"}`);
   updateControls();
 
   try {
-    const isConfirm = payload.prompt_kind === "confirm";
+    const isConfirm = payload.prompt_kind === "confirm" || payload.prompt_kind === "condition";
     const action = isConfirm
       ? await showCustomConfirmDialog({
-          title: payload.title || "弹窗确认",
+          title: payload.title || (payload.prompt_kind === "condition" ? "状态判断未通过" : "弹窗确认"),
           message: payload.message || "请确认后继续",
           detail: payload.detail || "",
           stepLabel: payload.step_label || payload.title || "",
+          okLabel: payload.prompt_kind === "condition" ? "继续执行" : "确认继续",
+          cancelLabel: "取消",
         })
       : await window.cutppaper.showActionDialog({
           title: payload.title || "步骤执行出现问题",
@@ -2004,7 +2177,7 @@ async function handleUserPrompt(payload) {
           detail: payload.detail || payload.step_label || "",
         });
     const label = isConfirm
-      ? (action === "confirm" ? "确认" : "取消")
+      ? (action === "confirm" ? (payload.prompt_kind === "condition" ? "继续执行" : "确认") : "取消")
       : (action === "retry" ? "重试" : action === "skip" ? "跳过此步" : "停止流程");
     log(isConfirm && action === "cancel" ? "warn" : "info", `用户确认: ${label}`);
     await sendCommand({
@@ -2120,14 +2293,18 @@ function closeSettingsModal() {
 function handleBackendEvent(payload) {
   switch (payload.event) {
     case "ready":
-      setBadge(els.pythonStatus, "badge-on", "Python 运行中");
+      state.pythonReady = true;
+      state.pythonExit = false;
+      refreshStatusPanel();
       sendCommand({ cmd: "get_config" }).then((res) => {
         if (res.event === "config") applyConfigToForm(res.config);
         return refreshPorts();
       }).then(refreshActionGroups);
       break;
     case "python_exit":
-      setBadge(els.pythonStatus, "badge-off", "Python 已退出");
+      state.pythonReady = false;
+      state.pythonExit = true;
+      refreshStatusPanel();
       log("error", payload.message);
       break;
     case "config":
@@ -2157,13 +2334,29 @@ function handleBackendEvent(payload) {
       state.connected = true;
       state.connectedPort = payload.port || "";
       state.simulation = payload.simulation === true;
-      updateModeBadge();
+      state.rodPosition = null;
+      state.motorState = null;
       log("info", payload.simulation ? "模拟模式已连接" : `串口已连接 ${payload.port}`);
       updateControls();
+      void refreshDeviceStatus();
+      break;
+    case "device_status":
+      if (payload.position) state.rodPosition = payload.position;
+      else if (payload.raw) state.rodPosition = parseRodPosition(payload.raw);
+      if (payload.motor) state.motorState = payload.motor;
+      refreshStatusPanel();
+      updateConnectionModal();
+      break;
+    case "rod_sensor":
+      state.rodPosition = payload.position || parseRodPosition(payload.raw);
+      refreshStatusPanel();
+      updateConnectionModal();
       break;
     case "disconnected":
       state.connected = false;
       state.connectedPort = "";
+      state.rodPosition = null;
+      state.motorState = null;
       log("info", "连接已断开");
       updateControls();
       break;
@@ -2432,15 +2625,36 @@ els.stepEditor.addEventListener("input", (event) => {
 });
 
 function handleStepFieldInput(target) {
-  if (!(target instanceof HTMLInputElement)) return;
+  const isInput = target instanceof HTMLInputElement;
+  const isSelect = target instanceof HTMLSelectElement;
+  if (!isInput && !isSelect) return;
   const index = Number(target.dataset.index);
   const field = target.dataset.field;
   if (Number.isNaN(index) || !field || !state.workflowSteps[index]) return;
 
-  if (field === "enabled") {
+  if (isInput && field === "enabled") {
     state.workflowSteps[index].enabled = target.checked;
     recalcTotalMs();
     updateControls();
+    return;
+  }
+  if (field === "status_key") {
+    state.workflowSteps[index][field] = target.value;
+    const options = CONDITION_STATUS_OPTIONS[target.value] || [];
+    const current = state.workflowSteps[index].expected_value;
+    if (!options.some((item) => item.value === current)) {
+      state.workflowSteps[index].expected_value = options[0]?.value || "";
+    }
+    updateConditionStepLabel(state.workflowSteps[index]);
+    recalcTotalMs();
+    renderStepEditor();
+    return;
+  }
+  if (field === "expected_value") {
+    state.workflowSteps[index][field] = target.value;
+    updateConditionStepLabel(state.workflowSteps[index]);
+    recalcTotalMs({ rerender: false });
+    renderStepEditor();
     return;
   }
   if (field === "press_count") {
@@ -2649,7 +2863,6 @@ els.loopIntervalMs.addEventListener("change", async () => {
 
 els.simulationMode.addEventListener("change", async () => {
   state.simulation = els.simulationMode.checked;
-  updateModeBadge();
   updateControls();
   try {
     await saveConfigSilently();
@@ -2712,6 +2925,14 @@ window.cutppaper.onStartHotkey?.(() => {
 });
 
 window.cutppaper.onBackendEvent(handleBackendEvent);
+StatusPanel.init({
+  onUsbClick: () => {
+    if (!state.running) openConnectionModal();
+  },
+  onRefresh: () => {
+    void refreshDeviceStatus();
+  },
+});
 initConfirmPromptModal();
 initStepNoteModal();
 initStepDelayModal();
@@ -2726,7 +2947,12 @@ recalcTotalMs();
 
 setInterval(async () => {
   const ready = await window.cutppaper.isBackendReady();
-  if (!ready) {
-    setBadge(els.pythonStatus, "badge-off", "Python 启动中");
+  if (ready && !state.pythonReady) {
+    state.pythonReady = true;
+    state.pythonExit = false;
+    refreshStatusPanel();
+  } else if (!ready && state.pythonReady) {
+    state.pythonReady = false;
+    refreshStatusPanel();
   }
 }, 1000);

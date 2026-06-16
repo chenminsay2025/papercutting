@@ -5,7 +5,12 @@ import time
 from enum import Enum
 from typing import Any, Callable, Optional
 
-from config import STEP_TYPE_LABELS, pulse_step_label
+from config import (
+    CONDITION_STATUS_LABELS,
+    STEP_TYPE_LABELS,
+    condition_value_label,
+    pulse_step_label,
+)
 from cutting_master import focus_window_step, is_app_window_keyword, press_hotkey_step, send_hotkey_to_window
 from serial_stm32 import Stm32Client, wait_ms
 
@@ -42,6 +47,10 @@ def _step_action_duration_ms(step: dict[str, Any], timings: dict[str, Any]) -> i
             default_ms = timings.get("cut_wait", timings.get("wait", default_ms))
         return int(step.get("duration_ms", default_ms))
     if step_type == "confirm_dialog":
+        return 0
+    if step_type == "condition_check":
+        return 0
+    if step_type in ("else_branch", "end_if"):
         return 0
     if step_type == "restore_app":
         return 0
@@ -116,6 +125,72 @@ class WorkflowRunner:
         self._cycle_progress_ms = 0
         self._step_progress_base_ms = 0
         self._active_step_total_ms = 0
+        self._branch_skip_until_else = False
+        self._branch_skip_until_end = False
+        self._branch_condition_met: bool | None = None
+
+    def _reset_branch_state(self) -> None:
+        self._branch_skip_until_else = False
+        self._branch_skip_until_end = False
+        self._branch_condition_met = None
+
+    @staticmethod
+    def _if_block_info(steps: list[dict[str, Any]], if_index: int) -> tuple[bool, bool]:
+        has_else = False
+        has_end = False
+        for i in range(if_index + 1, len(steps)):
+            step_type = str(steps[i].get("type", "")).strip()
+            if step_type == "end_if":
+                has_end = True
+                break
+            if step_type == "else_branch":
+                has_else = True
+        return has_else, has_end
+
+    def _handle_branch_gate(
+        self,
+        step: dict[str, Any],
+        steps: list[dict[str, Any]],
+        idx: int,
+        config: dict[str, Any],
+    ) -> bool:
+        """处理分支标记；返回 True 表示本步已消费，不再走普通 execute。"""
+        step_type = str(step.get("type", "")).strip()
+        label = _step_label(step, config)
+
+        if self._branch_skip_until_else:
+            if step_type == "else_branch":
+                self._branch_skip_until_else = False
+                self._emit_log("info", "进入否则分支")
+                self._set_step(str(step.get("id", "")), step_type, label)
+                return True
+            return True
+
+        if self._branch_skip_until_end:
+            if step_type == "end_if":
+                self._branch_skip_until_end = False
+                self._branch_condition_met = None
+                self._emit_log("info", "结束条件分支")
+                self._set_step(str(step.get("id", "")), step_type, label)
+                return True
+            return True
+
+        if step_type == "else_branch":
+            if self._branch_condition_met:
+                self._branch_skip_until_end = True
+                self._emit_log("info", "条件成立，跳过否则分支")
+            else:
+                self._emit_log("info", "进入否则分支")
+            self._set_step(str(step.get("id", "")), step_type, label)
+            return True
+
+        if step_type == "end_if":
+            self._reset_branch_state()
+            self._emit_log("info", "结束条件分支")
+            self._set_step(str(step.get("id", "")), step_type, label)
+            return True
+
+        return False
 
     def _begin_cycle_progress(self, total_ms: int) -> None:
         self._cycle_total_ms = max(int(total_ms), 0)
@@ -465,14 +540,36 @@ class WorkflowRunner:
         cm = config["cutting_master"]
         total_ms = _cycle_total_ms(config)
         self._begin_cycle_progress(total_ms)
+        self._reset_branch_state()
         cycle_start = time.monotonic()
         steps = _enabled_steps(config)
 
-        for step in steps:
+        for idx, step in enumerate(steps):
+            if self._handle_branch_gate(step, steps, idx, config):
+                continue
+
             label = _step_label(step, config)
             while True:
                 try:
-                    self._execute_step(step, cm, timings, total_ms, cycle_start, config)
+                    step_type = str(step.get("type", "")).strip()
+                    if step_type == "condition_check":
+                        has_else, has_end = self._if_block_info(steps, idx)
+                        self._active_step_id = str(step.get("id", ""))
+                        self._begin_step_progress()
+                        self._set_step(str(step.get("id", "")), step_type, label)
+                        self._do_condition_check(
+                            step,
+                            str(step.get("id", "")),
+                            step_type,
+                            label,
+                            total_ms,
+                            cycle_start,
+                            has_else_branch=has_else,
+                            has_end_if=has_end,
+                        )
+                        self._complete_step_progress(step, timings)
+                    else:
+                        self._execute_step(step, cm, timings, total_ms, cycle_start, config)
                     break
                 except WorkflowUserAbort:
                     raise
@@ -855,6 +952,171 @@ class WorkflowRunner:
             step_total_ms=1,
         )
         self._emit_log("info", f"用户已确认: {label}")
+
+    def _read_live_status(self) -> dict[str, str | None]:
+        if self._client is None or not getattr(self._client, "connected", False):
+            return {"paper": None, "motor": None, "usb": "disconnected"}
+        with self._client_lock:
+            line = self._client.status()
+        parsed = Stm32Client.parse_device_status(line)
+        return {
+            "paper": parsed.get("rod_position"),
+            "motor": parsed.get("motor"),
+            "usb": "connected",
+        }
+
+    def _resolve_condition_actual(self, status_key: str, live: dict[str, str | None]) -> str | None:
+        if status_key == "paper":
+            return live.get("paper")
+        if status_key == "motor":
+            return live.get("motor")
+        if status_key == "usb":
+            return live.get("usb")
+        return None
+
+    def _do_condition_check(
+        self,
+        step: dict[str, Any],
+        step_id: str,
+        step_type: str,
+        label: str,
+        total_ms: int,
+        cycle_start: float,
+        *,
+        has_else_branch: bool = False,
+        has_end_if: bool = False,
+    ) -> None:
+        status_key = str(step.get("status_key") or "paper").strip()
+        expected = str(step.get("expected_value") or "").strip()
+        if not expected:
+            raise RuntimeError("判断步骤缺少期望值")
+
+        key_label = CONDITION_STATUS_LABELS.get(status_key, status_key)
+        expected_label = condition_value_label(status_key, expected)
+
+        self._emit_progress(
+            step_id,
+            step_type,
+            label,
+            self._progress_elapsed(0),
+            total_ms,
+            f"检查{key_label}",
+            step_elapsed_ms=0,
+            step_total_ms=2,
+        )
+
+        live = self._read_live_status()
+        actual = self._resolve_condition_actual(status_key, live)
+        actual_label = condition_value_label(status_key, actual)
+
+        if actual == expected:
+            self._branch_condition_met = True
+            self._emit_log("info", f"判断通过: {key_label} = {expected_label}")
+            self._emit_progress(
+                step_id,
+                step_type,
+                label,
+                self._progress_elapsed(2),
+                total_ms,
+                "条件成立",
+                step_elapsed_ms=2,
+                step_total_ms=2,
+            )
+            return
+
+        self._branch_condition_met = False
+
+        if has_else_branch:
+            self._branch_skip_until_else = True
+            self._emit_log(
+                "info",
+                f"条件不成立，跳过「则」分支: 当前{key_label}=「{actual_label}」，期望「{expected_label}」",
+            )
+            self._emit_progress(
+                step_id,
+                step_type,
+                label,
+                self._progress_elapsed(2),
+                total_ms,
+                "走否则分支",
+                step_elapsed_ms=2,
+                step_total_ms=2,
+            )
+            return
+
+        if has_end_if:
+            self._branch_skip_until_end = True
+            self._emit_log(
+                "info",
+                f"条件不成立，跳到结束如果: 当前{key_label}=「{actual_label}」，期望「{expected_label}」",
+            )
+            self._emit_progress(
+                step_id,
+                step_type,
+                label,
+                self._progress_elapsed(2),
+                total_ms,
+                "跳过本段",
+                step_elapsed_ms=2,
+                step_total_ms=2,
+            )
+            return
+
+        warn_message = f"当前{key_label}为「{actual_label}」，不等于期望的「{expected_label}」"
+        detail = "是否仍继续执行后续步骤？选择「取消」将中止整个流程。"
+
+        prompt_id = f"condition-{time.time_ns()}"
+        with self._prompt_lock:
+            self._prompt_event.clear()
+            self._prompt_result = None
+            self._pending_prompt_id = prompt_id
+
+        self._emit_progress(
+            step_id,
+            step_type,
+            label,
+            self._progress_elapsed(1),
+            total_ms,
+            "判断未通过",
+            step_elapsed_ms=1,
+            step_total_ms=2,
+        )
+        self._emit(
+            {
+                "event": "user_prompt",
+                "prompt_id": prompt_id,
+                "prompt_kind": "condition",
+                "title": "状态判断未通过",
+                "message": warn_message,
+                "detail": detail,
+                "step_label": label,
+                "step_id": step_id,
+                "step_type": step_type,
+                "status_key": status_key,
+                "expected_value": expected,
+                "actual_value": actual,
+            }
+        )
+        self._set_phase(Phase.WAITING_USER, f"判断未通过: {label}")
+        self._emit_log("warn", f"判断未通过: {warn_message}")
+
+        action = self._wait_for_prompt(prompt_id)
+        if action in (PROMPT_CANCEL, PROMPT_ABORT) or self._cancel.is_set():
+            raise WorkflowUserAbort("用户取消")
+        if action != PROMPT_CONFIRM:
+            raise WorkflowUserAbort("用户取消")
+
+        self._emit_log("warn", f"用户选择继续执行（判断未通过）: {warn_message}")
+        self._emit_progress(
+            step_id,
+            step_type,
+            label,
+            self._progress_elapsed(2),
+            total_ms,
+            "已强制继续",
+            step_elapsed_ms=2,
+            step_total_ms=2,
+        )
 
     def _wait(
         self,

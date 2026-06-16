@@ -721,6 +721,61 @@
               <FilePath>.\User\buttons.h</FilePath>
             </File>
             <File>
+              <FileName>rod_sensor.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\User\rod_sensor.c</FilePath>
+            </File>
+            <File>
+              <FileName>rod_sensor.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\rod_sensor.h</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\lcd_config.h</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_st7735.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\User\lcd_st7735.c</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_st7735.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\lcd_st7735.h</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_font.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\User\lcd_font.c</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_font.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\lcd_font.h</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_font_gb16.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\User\lcd_font_gb16.c</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_font_gb16.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\lcd_font_gb16.h</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_ui.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\User\lcd_ui.c</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_ui.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\lcd_ui.h</FilePath>
+            </File>
+            <File>
               <FileName>protocol.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\User\protocol.c</FilePath>

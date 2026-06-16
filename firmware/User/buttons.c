@@ -66,6 +66,8 @@ void Button_Init(void)
 	GPIO_InitTypeDef gpio;
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+	if (BUTTON_GPIO == GPIOB)
+		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 
 	gpio.GPIO_Mode = GPIO_Mode_IPU;
 	gpio.GPIO_Pin = BUTTON_TOGGLE_PIN;

@@ -2,6 +2,7 @@
 #include "usart_serial.h"
 #include "motor.h"
 #include "relay.h"
+#include "rod_sensor.h"
 #include "board.h"
 #include <stdlib.h>
 #include <string.h>
@@ -52,8 +53,39 @@ static uint32_t Protocol_ParsePulseMs(const char *line, uint32_t default_ms)
 	return (uint32_t)value;
 }
 
+static void Protocol_AppendRodSuffix(char *buf, size_t cap)
+{
+	const char *rod;
+
+	if (cap == 0 || buf == NULL)
+	{
+		return;
+	}
+
+	rod = RodSensor_IsHome() ? ";ROD:HOME" : ";ROD:AWAY";
+	if (strlen(buf) + strlen(rod) + 1 > cap)
+	{
+		return;
+	}
+	strcat(buf, rod);
+}
+
+static void Protocol_SendRodSensor(void)
+{
+	if (RodSensor_IsHome())
+	{
+		Serial_SendLine("ROD:HOME");
+	}
+	else
+	{
+		Serial_SendLine("ROD:AWAY");
+	}
+}
+
 static void Protocol_SendStatus(void)
 {
+	char line[48];
+
 	if (s_comm_timed_out)
 	{
 		Serial_SendLine("STATUS:TIMEOUT");
@@ -63,22 +95,25 @@ static void Protocol_SendStatus(void)
 	switch (Motor_GetState())
 	{
 	case MOTOR_STATE_RETRACT:
-		Serial_SendLine("STATUS:RETRACTING");
+		strcpy(line, "STATUS:RETRACTING");
 		break;
 	case MOTOR_STATE_EXTEND:
-		Serial_SendLine("STATUS:EXTENDING");
+		strcpy(line, "STATUS:EXTENDING");
 		break;
 	default:
 		if (Relay_IsBusy())
 		{
-			Serial_SendLine("STATUS:RELAY");
+			strcpy(line, "STATUS:RELAY");
 		}
 		else
 		{
-			Serial_SendLine("STATUS:IDLE");
+			strcpy(line, "STATUS:IDLE");
 		}
 		break;
 	}
+
+	Protocol_AppendRodSuffix(line, sizeof(line));
+	Serial_SendLine(line);
 }
 
 static void Protocol_TouchComm(void)
@@ -103,6 +138,12 @@ static void Protocol_HandleLine(char *line)
 	if (strcmp(line, "STATUS") == 0)
 	{
 		Protocol_SendStatus();
+		return;
+	}
+
+	if (strcmp(line, "ROD_SENSOR") == 0)
+	{
+		Protocol_SendRodSensor();
 		return;
 	}
 

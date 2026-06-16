@@ -257,7 +257,7 @@
   <header>
     <div>
       <h1>CutPPaper 接线图</h1>
-      <p>STM32F103C8T6 · 点击节点查看说明</p>
+      <p>STM32F103C8T6 · nologo 0.96" TFT 一体板 · 点击节点查看说明</p>
     </div>
     <div class="tabs">
       <button class="tab active" data-view="mindmap">总览思维导图</button>
@@ -588,7 +588,8 @@
             <g data-sch-layer="wire-motor part-u1 part-u2 part-relay">
               <text x="430" y="259" text-anchor="end">PA0→IN1</text>
               <text x="430" y="279" text-anchor="end">PA1→IN2</text>
-              <text x="430" y="439" text-anchor="end">PA7→SW3</text>
+              <text x="430" y="439" text-anchor="end">PB8→SW3</text>
+              <text x="430" y="459" text-anchor="end">PA8→DO</text>
               <text x="810" y="302" text-anchor="end">K1</text>
               <text x="810" y="322" text-anchor="end">K2</text>
               <text x="1000" y="288">COM1←+24V</text>
@@ -621,20 +622,25 @@
             <g data-sch-layer="wire-led part-led part-u1">
               <text x="430" y="399" text-anchor="end">PA4</text>
               <text x="430" y="419" text-anchor="end">PA5</text>
-              <text x="630" y="399">PA6</text>
-              <text x="860" y="548" class="sch-note">各串 330Ω→GND</text>
+              <text x="630" y="399">PB9</text>
+              <text x="860" y="548" class="sch-note">D1/D2/D3 各串 330Ω→GND；PA6=LCD背光</text>
             </g>
             <g data-sch-layer="wire-btn part-sw">
               <use href="#sym-button" x="1120" y="430"/>
               <text x="1120" y="416" text-anchor="middle" class="sch-ref">SW3</text>
               <text x="1120" y="448" text-anchor="middle" class="sch-val">伸缩切换</text>
-              <text x="1120" y="464" text-anchor="middle" class="sch-note">PA7·3s交替</text>
-              <use href="#sym-button" x="1120" y="500"/>
-              <text x="1120" y="486" text-anchor="middle" class="sch-ref">SW1</text>
-              <text x="1120" y="518" text-anchor="middle" class="sch-val">继续</text>
-              <use href="#sym-button" x="1120" y="540"/>
-              <text x="1120" y="526" text-anchor="middle" class="sch-ref">SW2</text>
-              <text x="1120" y="558" text-anchor="middle" class="sch-val">原点</text>
+              <text x="1120" y="464" text-anchor="middle" class="sch-note">PB8·3s交替</text>
+              <rect x="1060" y="472" width="120" height="52" rx="6" fill="#fef9c3" stroke="#ca8a04"/>
+              <text x="1120" y="492" text-anchor="middle" class="sch-ref">U5 槽型光电</text>
+              <text x="1120" y="508" text-anchor="middle" class="sch-val">DO→PA8</text>
+              <text x="1120" y="522" text-anchor="middle" class="sch-note">遮挡=压纸中</text>
+              <use href="#sym-button" x="1120" y="560"/>
+              <use href="#sym-button" x="1120" y="596"/>
+              <text x="1120" y="582" text-anchor="middle" class="sch-ref">SW1</text>
+              <text x="1120" y="614" text-anchor="middle" class="sch-val">继续</text>
+              <use href="#sym-button" x="1120" y="636"/>
+              <text x="1120" y="622" text-anchor="middle" class="sch-ref">SW2</text>
+              <text x="1120" y="654" text-anchor="middle" class="sch-val">原点</text>
             </g>
           </g>
 
@@ -676,24 +682,30 @@
           <tr><td>6</td><td>ST-LINK GND</td><td>STM32 GND</td><td style="color:#1f2937">黑</td><td>必须共地</td></tr>
           <tr><td>7</td><td>ST-LINK 3.3V</td><td>STM32 3.3V</td><td style="color:#dc2626">红</td><td>可选，板子已有供电可不接</td></tr>
           <tr><td>8</td><td>DC-DC 输出 3.3V</td><td>STM32 3.3V</td><td style="color:#dc2626">红</td><td>禁止 24V 直连 MCU 引脚</td></tr>
-          <tr><td>9</td><td>STM32 PA0</td><td>继电器 IN1 (K1)</td><td style="color:#ea580c">橙</td><td>缩回时与 PA1 同时吸合</td></tr>
+          <tr><td>9</td><td>STM32 PA0</td><td>继电器 IN1 (K1)</td><td style="color:#ea580c">橙</td><td>缩回时仅 K1 吸合（PA0=1，PA1=0）</td></tr>
           <tr><td>10</td><td>STM32 PA1</td><td>继电器 IN2 (K2)</td><td style="color:#ea580c">橙</td><td>伸出时单独吸合；换向前 STOP 80ms</td></tr>
-          <tr><td>11</td><td>24V+</td><td>COM1 (K1)</td><td style="color:#dc2626">红</td><td>电机电源正极</td></tr>
-          <tr><td>12</td><td>GND</td><td>COM2 (K2)</td><td style="color:#1f2937">黑</td><td>电机电源负极</td></tr>
-          <tr><td>13</td><td>NO1 + NC1</td><td>电机正极 (+)</td><td style="color:#ea580c">橙</td><td>并到同一接线点</td></tr>
-          <tr><td>14</td><td>NO2</td><td>电机负极 (−)</td><td style="color:#ea580c">橙</td><td>NC2 悬空不接</td></tr>
+          <tr><td>11</td><td>24V+</td><td>NO1 与 NO2（短接拱桥）</td><td style="color:#dc2626">红</td><td>电机 H 桥正极；勿接 COM</td></tr>
+          <tr><td>12</td><td>GND</td><td>NC1 与 NC2（短接拱桥）</td><td style="color:#1f2937">黑</td><td>与 STM32、继电器 DC− 共地</td></tr>
+          <tr><td>13</td><td>伸缩杆线 A</td><td>COM1</td><td style="color:#ea580c">橙</td><td>负载接 COM；勿跨并 NO/NC</td></tr>
+          <tr><td>14</td><td>伸缩杆线 B</td><td>COM2</td><td style="color:#ea580c">橙</td><td>方向反了则对调 COM1/COM2</td></tr>
           <tr><td>15</td><td>STM32 PA4</td><td>D1 缩回 LED（经 330Ω）</td><td style="color:#f59e0b">琥珀</td><td>缩回时亮</td></tr>
           <tr><td>16</td><td>STM32 PA5</td><td>D2 伸出 LED（经 330Ω）</td><td style="color:#22c55e">绿</td><td>伸出时亮</td></tr>
-          <tr><td>17</td><td>STM32 PA6</td><td>D3 串口 LED（经 330Ω）</td><td style="color:#2563eb">蓝</td><td>未连接快闪；已连接呼吸慢闪</td></tr>
-          <tr><td>18</td><td>STM32 PA7</td><td>伸缩切换按钮 → GND</td><td style="color:#64748b">灰</td><td>按一次缩回 3s，再按伸出 3s，交替</td></tr>
-          <tr><td>19</td><td>四路继电器 DC+</td><td>12V 电源正极</td><td style="color:#dc2626">红</td><td>12V 光耦模块；5V 模块接 5V；勿接 24V</td></tr>
-          <tr><td>20</td><td>四路继电器 DC-</td><td>系统 GND</td><td style="color:#1f2937">黑</td><td>与 STM32、TTL、ST-LINK 共地</td></tr>
-          <tr><td>21</td><td>跳线 S1~S4</td><td>插上跳线帽</td><td style="color:#64748b">—</td><td>高电平触发 IN1~IN4</td></tr>
-          <tr><td>22</td><td>STM32 PA2</td><td>继电器 IN3 (K3)</td><td style="color:#059669">绿</td><td>脉冲 →「继续」</td></tr>
-          <tr><td>23</td><td>COM3 + NO3</td><td>「继续」按钮</td><td style="color:#64748b">灰</td><td>并联；NC3 不接</td></tr>
-          <tr><td>24</td><td>STM32 PA3</td><td>继电器 IN4 (K4)</td><td style="color:#059669">绿</td><td>脉冲 →「原点」</td></tr>
-          <tr><td>25</td><td>COM4 + NO4</td><td>「原点」按钮</td><td style="color:#64748b">灰</td><td>并联；NC4 不接</td></tr>
-          <tr><td>26</td><td>24V 电源 GND</td><td>共地总线</td><td style="color:#1f2937">黑</td><td>所有模块 GND 汇到一点</td></tr>
+          <tr><td>17</td><td>STM32 PB9</td><td>D3 串口 LED（经 330Ω）</td><td style="color:#2563eb">蓝</td><td>nologo 板；标准板仍用 PA6；快闪=未连接，慢呼吸=已连接</td></tr>
+          <tr><td>18</td><td>STM32 PB8</td><td>伸缩切换按钮 → GND</td><td style="color:#64748b">灰</td><td>nologo 板；PA7=LCD RES；按一次缩回 3s，再按伸出 3s</td></tr>
+          <tr><td>19</td><td>槽型光电 VCC</td><td>STM32 3.3V</td><td style="color:#dc2626">红</td><td>模块 3.3~5V；AO 悬空</td></tr>
+          <tr><td>20</td><td>槽型光电 GND</td><td>系统 GND</td><td style="color:#1f2937">黑</td><td>与 STM32、继电器共地</td></tr>
+          <tr><td>21</td><td>槽型光电 DO</td><td>STM32 PA8</td><td style="color:#ca8a04">黄</td><td>遮挡=压纸中/ROD:HOME；未遮挡=未压纸；缩回中自动停电机</td></tr>
+          <tr><td>22</td><td>四路继电器 DC+</td><td>12V 电源正极</td><td style="color:#dc2626">红</td><td>12V 光耦模块；5V 模块接 5V；勿接 24V</td></tr>
+          <tr><td>23</td><td>四路继电器 DC-</td><td>系统 GND</td><td style="color:#1f2937">黑</td><td>与 STM32、TTL、ST-LINK 共地</td></tr>
+          <tr><td>24</td><td>跳线 S1~S4</td><td>插上跳线帽</td><td style="color:#64748b">—</td><td>高电平触发 IN1~IN4</td></tr>
+          <tr><td>25</td><td>STM32 PA2</td><td>继电器 IN3 (K3)</td><td style="color:#059669">绿</td><td>脉冲 →「继续」</td></tr>
+          <tr><td>26</td><td>COM3 + NO3</td><td>「继续」按钮</td><td style="color:#64748b">灰</td><td>并联；NC3 不接</td></tr>
+          <tr><td>27</td><td>STM32 PA3</td><td>继电器 IN4 (K4)</td><td style="color:#059669">绿</td><td>脉冲 →「原点」</td></tr>
+          <tr><td>28</td><td>COM4 + NO4</td><td>「原点」按钮</td><td style="color:#64748b">灰</td><td>并联；NC4 不接</td></tr>
+          <tr><td>29</td><td>24V 电源 GND</td><td>共地总线</td><td style="color:#1f2937">黑</td><td>所有模块 GND 汇到一点</td></tr>
+          <tr><td>30</td><td>（nologo）PA6</td><td>LCD 背光 BLK</td><td style="color:#64748b">—</td><td>板载已焊；低电平亮；勿接 D3</td></tr>
+          <tr><td>31</td><td>PB0~PB1, PB10~PB11, PA7</td><td>板载 ST7735 LCD</td><td style="color:#64748b">—</td><td>DC/CS/SCL/SDA/RES；FPC 已焊死</td></tr>
+          <tr><td>32</td><td>PB12~PB15</td><td>板载 W25Q64 Flash</td><td style="color:#64748b">—</td><td>SPI2；固件勿占用</td></tr>
         </table>
 
         <div class="detail-box">
@@ -702,9 +714,10 @@
             <li><span class="highlight">共地</span>：24V 负极、STM32、USB-TTL、ST-LINK、四路继电器 GND 全部相连</li>
             <li><span class="highlight">电压</span>：STM32 仅 3.3V；USB-TTL 拨 3.3V；24V 只接 COM1/COM2 电机触点</li>
             <li><span class="highlight">串口</span>：TX/RX 交叉（TTL TX→PA10，TTL RX←PA9），115200</li>
-            <li><span class="highlight">电机 K1/K2</span>：COM1←24V+、COM2←GND；NO1+NC1→电机+、NO2→电机−；NC2 不接；停止时断电</li>
-            <li><span class="highlight">伸缩键 PA7</span>：单键接 GND；按一次缩回 3s，再按伸出 3s，交替</li>
-            <li><span class="highlight">LED</span>：PA4 缩回、PA5 伸出、PA6 串口；各串 330Ω 到 GND</li>
+            <li><span class="highlight">电机 K1/K2</span>：NO1–NO2→24V+，NC1–NC2→GND，COM1/COM2→电机两根线；NC2 单独悬空；停止时 COM 经 NC 接 GND</li>
+            <li><span class="highlight">伸缩键 PB8</span>：nologo 板单键接 GND（PA7=LCD 复位）；按一次缩回 3s，再按伸出 3s</li>
+            <li><span class="highlight">槽型光电 PA8</span>：VCC→3.3V、GND 共地、DO→PA8；遮挡=压纸中（ROD:HOME）</li>
+            <li><span class="highlight">LED</span>：PA4 缩回、PA5 伸出、PB9 串口（nologo）；PA6 仅 LCD 背光；各串 330Ω 到 GND</li>
             <li><span class="highlight">按钮 K3/K4</span>：PA2→IN3、PA3→IN4；COM3/NO3 继续、COM4/NO4 原点；NC3/NC4 不接</li>
             <li><span class="highlight">继电器 U4</span>：DC+→12V、DC-→GND；S1~S4 跳线插 H（光耦模块可能无声）</li>
             <li><span class="highlight">走线</span>：24V 电机线与信号线分开；电机线尽量粗、短，减少压降与干扰</li>
@@ -797,16 +810,20 @@
             <line x1="180" y1="254" x2="200" y2="254" stroke="#059669" stroke-width="2"/>
 
             <rect x="30" y="280" width="150" height="28" rx="6" fill="#e2e8f0" stroke="#64748b"/>
-            <text x="105" y="299" text-anchor="middle" fill="#334155">PA7 → 伸缩切换键</text>
+            <text x="105" y="299" text-anchor="middle" fill="#334155">PB8 → 伸缩切换键</text>
             <line x1="180" y1="294" x2="200" y2="294" stroke="#64748b" stroke-width="2"/>
 
-            <rect x="30" y="320" width="150" height="28" rx="6" fill="#dbeafe" stroke="#2563eb"/>
-            <text x="105" y="339" text-anchor="middle" fill="#1e40af">PA13 SWDIO</text>
-            <line x1="180" y1="334" x2="200" y2="334" stroke="#2563eb" stroke-width="2"/>
+            <rect x="30" y="320" width="150" height="28" rx="6" fill="#fef9c3" stroke="#ca8a04"/>
+            <text x="105" y="339" text-anchor="middle" fill="#854d0e">PA8 → 压纸光电 DO</text>
+            <line x1="180" y1="334" x2="200" y2="334" stroke="#ca8a04" stroke-width="2"/>
 
             <rect x="30" y="360" width="150" height="28" rx="6" fill="#dbeafe" stroke="#2563eb"/>
-            <text x="105" y="379" text-anchor="middle" fill="#1e40af">PA14 SWCLK</text>
+            <text x="105" y="379" text-anchor="middle" fill="#1e40af">PA13 SWDIO</text>
             <line x1="180" y1="374" x2="200" y2="374" stroke="#2563eb" stroke-width="2"/>
+
+            <rect x="30" y="400" width="150" height="28" rx="6" fill="#dbeafe" stroke="#2563eb"/>
+            <text x="105" y="419" text-anchor="middle" fill="#1e40af">PA14 SWCLK</text>
+            <line x1="180" y1="414" x2="200" y2="414" stroke="#2563eb" stroke-width="2"/>
           </g>
 
           <!-- 右侧引脚 -->
@@ -836,13 +853,26 @@
           <tr><td>PA1</td><td>输出</td><td>四路继电器 IN2 / K2（伸出）</td><td style="color:#ea580c">橙</td></tr>
           <tr><td>PA4</td><td>输出</td><td>LED D1 缩回指示</td><td style="color:#f59e0b">琥珀</td></tr>
           <tr><td>PA5</td><td>输出</td><td>LED D2 伸出指示</td><td style="color:#22c55e">绿</td></tr>
-          <tr><td>PA6</td><td>输出</td><td>LED D3 串口状态</td><td style="color:#2563eb">蓝</td></tr>
+          <tr><td>PA6</td><td>输出</td><td>LCD 背光（nologo 板载；勿接 D3）</td><td style="color:#64748b">—</td></tr>
+          <tr><td>PB9</td><td>输出</td><td>LED D3 串口状态（nologo）</td><td style="color:#2563eb">蓝</td></tr>
           <tr><td>PA2</td><td>输出</td><td>四路继电器 IN3 / K3 → COM3/NO3 继续</td><td style="color:#059669">绿</td></tr>
           <tr><td>PA3</td><td>输出</td><td>四路继电器 IN4 / K4 → COM4/NO4 原点</td><td style="color:#059669">绿</td></tr>
-          <tr><td>PA7</td><td>输入</td><td>伸缩切换按钮 → GND（按一次缩回 3s，再按伸出 3s）</td><td style="color:#64748b">灰</td></tr>
+          <tr><td>PB8</td><td>输入</td><td>伸缩切换按钮 → GND（nologo；PA7=LCD RES）</td><td style="color:#64748b">灰</td></tr>
+          <tr><td>PA8</td><td>输入</td><td>槽型光电 DO（遮挡=压纸中 HOME）</td><td style="color:#ca8a04">黄</td></tr>
+          <tr><td>PA7</td><td>输出</td><td>LCD RES 复位（nologo 板载）</td><td style="color:#64748b">—</td></tr>
+          <tr><td>PB0~11</td><td>SPI/GPIO</td><td>板载 ST7735 LCD（nologo 已焊）</td><td style="color:#64748b">—</td></tr>
           <tr><td>PA9/10</td><td>串口</td><td>USB-TTL 交叉连接</td><td style="color:#2563eb">蓝</td></tr>
           <tr><td>PA13/14</td><td>SWD</td><td>ST-LINK 烧录</td><td style="color:#2563eb">蓝</td></tr>
         </table>
+        <div class="detail-box">
+          <h3>nologo 0.96" TFT 一体板（默认）</h3>
+          <ul>
+            <li>板载 LCD：PB0=DC，PB1=CS，PB10=SCL，PB11=SDA，PA7=RES，PA6=背光（低电平亮）</li>
+            <li>外接：D3 串口灯 → <span class="highlight">PB9</span>；切换键 → <span class="highlight">PB8</span>；压纸光电 DO → PA8</li>
+            <li>LCD 显示：切纸机状态 · 压纸（压纸中/未压纸）· USB · 电机</li>
+            <li>标准最小系统板：串口灯仍用 PA6，切换键仍用 PA7（无板载屏）</li>
+          </ul>
+        </div>
       </div>
     </section>
 
@@ -953,7 +983,8 @@
             <text x="460" y="442">PA0=1 PA1=0 → 仅 K1 吸合 → 缩回</text>
             <text x="460" y="464">PA0=0 PA1=1 → 仅 K2 吸合 → 伸出</text>
             <text x="460" y="486">PA0=0 PA1=0 → 释放 → 停止（断电）</text>
-            <text x="460" y="508" fill="#64748b">PA7 单键：按一次缩回 3s，再按伸出 3s，交替</text>
+            <text x="460" y="508" fill="#64748b">PB8 单键：按一次缩回 3s，再按伸出 3s，交替（nologo）</text>
+            <text x="460" y="530" fill="#ca8a04">PA8 槽型光电：遮挡=压纸中 → ROD:HOME，自动停电机</text>
           </g>
         </svg>
 
@@ -961,7 +992,8 @@
           <tr><th>端子</th><th>接法</th><th>说明</th></tr>
           <tr><td>IN1 (K1)</td><td>STM32 PA0</td><td>缩回时单独吸合</td></tr>
           <tr><td>IN2 (K2)</td><td>STM32 PA1</td><td>伸出时单独吸合</td></tr>
-          <tr><td>PA7</td><td>切换按钮 → GND</td><td>现场手动：每次 3 秒，缩回/伸出交替</td></tr>
+          <tr><td>PB8</td><td>切换按钮 → GND</td><td>现场手动：每次 3 秒，缩回/伸出交替（nologo）</td></tr>
+          <tr><td>PA8</td><td>槽型光电 DO</td><td>压纸检测；遮挡=压纸中；VCC→3.3V、GND 共地</td></tr>
           <tr><td>COM1</td><td>24V+</td><td>电机电源正极</td></tr>
           <tr><td>COM2</td><td>GND</td><td>电机电源负极</td></tr>
           <tr><td>NO1 + NC1</td><td>电机正极 (+)</td><td>并到同一接线点</td></tr>
@@ -1073,15 +1105,14 @@
           <tr><th>端子</th><th>本方案接法</th><th>说明</th></tr>
           <tr><td>DC+</td><td>12V 正极</td><td>12V 光耦模块；5V 模块接 5V；勿接 24V 或 STM32 3.3V</td></tr>
           <tr><td>DC-</td><td>系统 GND</td><td>必须与 STM32 GND 共地</td></tr>
-          <tr><td>IN1</td><td>STM32 PA0</td><td>K1 缩回（与 K2 同时吸合）</td></tr>
-          <tr><td>IN2</td><td>STM32 PA1</td><td>K2 伸出（单独吸合）</td></tr>
+          <tr><td>IN1</td><td>STM32 PA0</td><td>K1 缩回（仅 K1 吸合）</td></tr>
+          <tr><td>IN2</td><td>STM32 PA1</td><td>K2 伸出（仅 K2 吸合）</td></tr>
           <tr><td>IN3</td><td>STM32 PA2</td><td>K3 脉冲模拟「继续」</td></tr>
           <tr><td>IN4</td><td>STM32 PA3</td><td>K4 脉冲模拟「原点」</td></tr>
           <tr><td>S1 ~ S4</td><td>跳线插 H</td><td>高电平触发；光耦模块可能无声</td></tr>
-          <tr><td>COM1</td><td>24V+</td><td>电机主电源正极</td></tr>
-          <tr><td>COM2</td><td>GND (24V-)</td><td>电机主电源负极</td></tr>
-          <tr><td>NO1 + NC1</td><td>电机正极 (+)</td><td>见 wiring.md §5.3</td></tr>
-          <tr><td>NO2</td><td>电机负极 (−)</td><td>NC2 悬空</td></tr>
+          <tr><td>NO1 + NO2</td><td>24V+（短接拱桥）</td><td>电机 H 桥正极分配</td></tr>
+          <tr><td>NC1 + NC2</td><td>GND（短接拱桥）</td><td>电机 H 桥负极分配</td></tr>
+          <tr><td>COM1 / COM2</td><td>伸缩杆电机两根线</td><td>见 wiring.md §5.3</td></tr>
           <tr><td>COM3 + NO3</td><td>「继续」按钮</td><td>干触点并联；NC3 悬空</td></tr>
           <tr><td>COM4 + NO4</td><td>「原点」按钮</td><td>干触点并联；NC4 悬空</td></tr>
         </table>
@@ -1090,7 +1121,7 @@
           <h3>接线要点</h3>
           <ul>
             <li>四路全部使用：<span class="highlight">IN1/IN2 电机</span>、<span class="highlight">IN3/IN4 按钮</span></li>
-            <li>缩回时 <span class="highlight">K1+K2 同时吸合</span>；伸出时仅 K2；停止时全部释放</li>
+            <li>缩回时 <span class="highlight">仅 K1 吸合</span>；伸出时仅 K2；停止时全部释放（COM 经 NC 接 GND）</li>
             <li>若继电器不吸合：检查 DC+ 是否有 12V、DC- 是否共地、跳线是否插 H</li>
             <li>先用万用表确认机器按钮为 <span class="highlight">干触点</span>（按下通、松开断），再并联 COM/NO</li>
             <li>切勿把 220V 或未知强电按钮直接并联；强电须用隔离方案</li>

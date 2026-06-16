@@ -95,12 +95,49 @@ class Stm32Client:
                     continue
                 time.sleep(0.01)
                 continue
-            if line.startswith("OK") or line.startswith("ERR") or line.startswith("STATUS"):
+            if line.startswith("OK") or line.startswith("ERR") or line.startswith("STATUS") or line.startswith("ROD:"):
                 return line
         raise TimeoutError(f"等待 STM32 响应超时: {command}")
 
     def ping(self) -> str:
         return self.send_command("PING")
+
+    def status(self) -> str:
+        return self.send_command("STATUS")
+
+    @staticmethod
+    def parse_motor_state(line: str) -> str | None:
+        upper = str(line or "").upper()
+        if "RETRACTING" in upper:
+            return "retract"
+        if "EXTENDING" in upper:
+            return "extend"
+        if "RELAY" in upper:
+            return "relay"
+        if "TIMEOUT" in upper:
+            return "timeout"
+        if "IDLE" in upper:
+            return "idle"
+        return None
+
+    @staticmethod
+    def parse_device_status(line: str) -> dict[str, str | None]:
+        return {
+            "motor": Stm32Client.parse_motor_state(line),
+            "rod_position": Stm32Client.parse_rod_position(line),
+        }
+
+    def rod_sensor(self) -> str:
+        return self.send_command("ROD_SENSOR")
+
+    @staticmethod
+    def parse_rod_position(line: str) -> str | None:
+        upper = str(line or "").upper()
+        if "ROD:HOME" in upper:
+            return "home"
+        if "ROD:AWAY" in upper:
+            return "away"
+        return None
 
     def retract(self) -> str:
         return self.send_command("RETRACT")

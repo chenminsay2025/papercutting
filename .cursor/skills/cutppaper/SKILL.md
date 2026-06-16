@@ -140,8 +140,13 @@ npm start
 |------|------|
 | PA0 / PA1 | 电机缩回 / 伸出（H 桥 IN1/IN2） |
 | PA2 / PA3 | 继电器 A（继续）/ B（原点） |
-| PA4–PA6 | LED 缩回 / 伸出 / 串口活跃 |
-| PA7 | 实体按键（3s 交替缩回/伸出） |
+| PA4 / PA5 | LED 缩回 / 伸出 |
+| PA6 | nologo：LCD 背光；标准板：串口 LED |
+| PA7 | nologo：LCD RES；标准板：切换按键 → GND |
+| PA8 | 槽型光电 DO（遮挡=压纸中 `ROD:HOME`） |
+| PB8 | 切换按键 → GND（nologo 一体板） |
+| PB9 | 串口状态 LED D3（nologo 一体板） |
+| PB0~PB11 | 板载 ST7735 LCD（nologo，FPC 已焊） |
 | PA9 / PA10 | USART1 TX/RX |
 
 Keil 工程：`firmware/CutPPaper.uvprojx`。详细接线见 `docs/wiring.md`。

@@ -15,6 +15,8 @@ class MockStm32Client:
         self.timeout = 2.0
         self._emit_log = emit_log
         self._open = False
+        self._motor_state = "idle"
+        self._rod_position = "away"
 
     @staticmethod
     def list_ports() -> list[dict[str, str]]:
@@ -37,10 +39,45 @@ class MockStm32Client:
             raise RuntimeError("模拟串口未连接")
         self._log(f"→ STM32: {command}")
         time.sleep(0.05)
+        cmd = str(command or "").strip().upper()
+        if cmd == "PING":
+            return "OK:PONG"
+        if cmd == "ROD_SENSOR":
+            pos = "HOME" if self._rod_position == "home" else "AWAY"
+            return f"ROD:{pos}"
+        if cmd == "STATUS":
+            motor = "RETRACTING" if self._motor_state == "retract" else (
+                "EXTENDING" if self._motor_state == "extend" else "IDLE"
+            )
+            rod = "HOME" if self._rod_position == "home" else "AWAY"
+            return f"STATUS:{motor};ROD:{rod}"
+        if cmd == "RETRACT":
+            self._motor_state = "retract"
+            self._rod_position = "home"
+            return "OK"
+        if cmd == "EXTEND":
+            self._motor_state = "extend"
+            self._rod_position = "away"
+            return "OK"
+        if cmd == "STOP":
+            self._motor_state = "idle"
+            return "OK"
+        if cmd == "ESTOP":
+            self._motor_state = "idle"
+            return "OK:ESTOP"
+        if cmd.startswith("PULSE_"):
+            self._motor_state = "relay"
+            return "OK"
         return "OK"
 
     def ping(self) -> str:
         return self.send_command("PING")
+
+    def rod_sensor(self) -> str:
+        return self.send_command("ROD_SENSOR")
+
+    def status(self) -> str:
+        return self.send_command("STATUS")
 
     def retract(self) -> str:
         return self.send_command("RETRACT")

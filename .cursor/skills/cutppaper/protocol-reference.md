@@ -33,6 +33,7 @@
 | `estop` | — | `estop` |
 | `test_step` | `step`, `workflow_step?`, `duration_ms?` | `test_done` |
 | `serial_ping` | — | `serial_ping` |
+| `rod_sensor` | — | `rod_sensor` |
 | `restore_app_focus` | `keyword?` | `app_focus_restored` |
 | `list_open_windows` | `max_count?` | `open_windows` |
 | `restore_focus_ack` | `request_id`, `ok`, `title?` | `restore_focus_ack` |
@@ -69,6 +70,7 @@
 | `cycle_aborted` | `loop_index`, `message?` | 中止 |
 | `estop` | — | 急停确认 |
 | `cut_hotkey_sent` | `hotkey`, `title` | 热键已发送 |
+| `rod_sensor` | `position`, `raw` | 压纸状态：`home`=压纸中（遮挡），`away`=未压纸 |
 | `user_prompt` | `prompt_id`, `prompt_text`, `step_id`, ... | 等待用户确认 |
 | `restore_focus_request` | `request_id`, `keyword` | 请求 Electron 恢复焦点 |
 
@@ -86,7 +88,7 @@
 
 - 波特率：115200（`config.serial.baudrate`）
 - 帧格式：命令字符串 + `\r\n`
-- 响应：`OK`, `OK:PONG`, `OK:ESTOP`, `ERR:INVALID`, `STATUS:*`
+- 响应：`OK`, `OK:PONG`, `OK:ESTOP`, `ERR:INVALID`, `STATUS:*`, `ROD:HOME`（压纸中）, `ROD:AWAY`（未压纸）
 
 Python 客户端（`serial_stm32.py`）方法：
 
@@ -98,6 +100,7 @@ stop()           → STOP
 estop()          → ESTOP
 pulse_a(ms)      → PULSE_A:{ms}
 pulse_b(ms)     → PULSE_B:{ms}
+rod_sensor()    → ROD_SENSOR
 status()         → STATUS
 ```
 
@@ -125,3 +128,17 @@ status()         → STATUS
 - `pulse_a` / `pulse_b`：`duration_ms`（50–2000）
 - `focus_window` / `restore_app`：`window_keyword`
 - `confirm_dialog`：`prompt_text`
+- `condition_check`：`status_key`（paper/motor/usb），`expected_value`
+- `else_branch` / `end_if`：分支标记，与「如果」成对使用（见下）
+
+### 如果 / 否则 / 结束如果（if-else）
+
+在 `workflow_steps` 中按顺序放置：
+
+1. **如果**（`condition_check`）— 设置状态条件
+2. **则** — 紧跟其后的普通步骤（条件成立时执行）
+3. **否则**（`else_branch`）— 可选
+4. **否则** 后的步骤（条件不成立时执行）
+5. **结束如果**（`end_if`）— 必须，闭合分支
+
+条件成立 → 执行「则」段，跳到「结束如果」；不成立 → 跳过「则」段，执行「否则」段（若有）。无「否则」时不成立则直接跳到「结束如果」。若未配「结束如果」/「否则」，条件不成立时仍弹窗询问是否继续。

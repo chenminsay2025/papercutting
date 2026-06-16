@@ -7,7 +7,10 @@ static volatile uint32_t s_tick_ms = 0;
 void Board_Init(void)
 {
 	SysTick_Config(SystemCoreClock / 1000);
+}
 
+void Board_WatchdogInit(void)
+{
 	/* IWDG: LSI ~40kHz, prescaler 64, reload 1250 => ~2s timeout */
 	IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
 	IWDG_SetPrescaler(IWDG_Prescaler_64);

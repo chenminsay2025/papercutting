@@ -4,22 +4,18 @@
 #include "relay.h"
 #include "buttons.h"
 #include "rod_sensor.h"
-#include "lcd_ui.h"
+#include "oled_ui.h"
 #include "usart_serial.h"
 #include "protocol.h"
 #include "led.h"
 
 int main(void)
 {
-	/* 最先拉低 PA0/PA1，避免上电瞬间继电器 IN1/IN2 因浮空误触发 */
 	Motor_Init();
 	Board_Init();
+	Board_DetectHardware();
 
-#if BOARD_HAS_ONBOARD_LCD
-	/* 尽早初始化 LCD（官方例程：上电白底 + Hello!） */
-	LcdUi_Init();
-#endif
-
+	OledUi_Init();
 	Board_WatchdogInit();
 
 	Relay_Init();
@@ -39,9 +35,7 @@ int main(void)
 		RodSensor_Tick();
 		Relay_Tick();
 		Led_Tick();
-#if BOARD_HAS_ONBOARD_LCD
-		LcdUi_Tick();
-#endif
+		OledUi_Tick();
 		Board_FeedWatchdog();
 	}
 }

@@ -1,10 +1,7 @@
 #include "lcd_ui.h"
 #include "lcd_config.h"
-
-#if BOARD_HAS_ONBOARD_LCD
-
-#include "lcd_st7735.h"
 #include "board.h"
+#include "lcd_st7735.h"
 #include "motor.h"
 #include "protocol.h"
 #include "rod_sensor.h"
@@ -87,6 +84,9 @@ static void LcdUi_DrawFrame(uint8_t rod_home, MotorState_t motor, uint8_t comm)
 
 void LcdUi_Init(void)
 {
+	if (!Board_HasOnboardLcd())
+		return;
+
 	s_last_draw_ms = 0;
 	s_ui_ready = 0;
 	s_last_rod_home = 0xFF;
@@ -107,6 +107,9 @@ void LcdUi_Tick(void)
 	uint8_t comm = Protocol_IsCommActive();
 	uint8_t changed;
 
+	if (!Board_HasOnboardLcd())
+		return;
+
 	if (!s_ui_ready)
 		return;
 
@@ -125,9 +128,3 @@ void LcdUi_Tick(void)
 	LcdUi_DrawFrame(rod_home, motor, comm);
 }
 
-#else
-
-void LcdUi_Init(void) {}
-void LcdUi_Tick(void) {}
-
-#endif

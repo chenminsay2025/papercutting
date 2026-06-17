@@ -20,4 +20,7 @@ void Lcd_DrawString(uint16_t x, uint16_t y, const char *text, uint16_t fg, uint1
 void Lcd_DrawChinese16(uint16_t x, uint16_t y, const char *s, uint16_t fg, uint16_t bg);
 void Lcd_DrawChinese(uint16_t x, uint16_t y, const char *s, uint16_t fg, uint16_t bg);
 
+uint8_t Lcd_Probe(void);
+void Lcd_GpioRelease(void);
+
 #endif

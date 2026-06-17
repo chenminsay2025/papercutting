@@ -196,41 +196,44 @@ class ControllerService:
             if cmd == "connect":
                 if self.workflow.running:
                     raise RuntimeError("流程运行中，无法连接/切换串口")
-                self._recreate_client_if_needed(force=True)
+
+                incoming = message.get("config")
+                if incoming:
+                    merged = self._merge_config(incoming)
+                    errors = validate_config(merged)
+                    if errors:
+                        reply({"event": "error", "message": "; ".join(errors)})
+                        return
+                    self.config = merged
+                    save_config(self.config)
+
                 port = message.get("port") or self.config["serial"]["port"]
-                simulation = self.config.get("app", {}).get("simulation_mode", False)
-
-                if simulation:
-                    self.config.setdefault("app", {})["simulation_mode"] = True
-                    self._recreate_client_if_needed(force=True)
-                    with self._client_lock:
-                        assert self.client is not None
-                        self.client.connect()
-                        response = self.client.ping()
-                    reply(
-                        {
-                            "event": "connected",
-                            "port": "SIM（模拟）",
-                            "response": response,
-                            "simulation": True,
-                        }
-                    )
-                    return
-
-                self.config.setdefault("app", {})["simulation_mode"] = False
                 self.config["serial"]["port"] = port
-                save_config(self.config)
+                simulation = bool(self.config.get("app", {}).get("simulation_mode", False))
+                self.config.setdefault("app", {})["simulation_mode"] = simulation
+                if not incoming:
+                    save_config(self.config)
+
                 self._recreate_client_if_needed(force=True)
                 with self._client_lock:
                     assert self.client is not None
-                    self.client.port = port
+                    if not simulation:
+                        self.client.port = port
                     try:
                         self.client.connect()
                         response = self.client.ping()
                     except Exception:
-                        self.client.close()
+                        if not simulation:
+                            self.client.close()
                         raise
-                reply({"event": "connected", "port": port, "response": response, "simulation": False})
+                reply(
+                    {
+                        "event": "connected",
+                        "port": "SIM（模拟）" if simulation else port,
+                        "response": response,
+                        "simulation": simulation,
+                    }
+                )
                 return
 
             if cmd == "disconnect":

@@ -45,7 +45,7 @@ class Stm32Client:
             # CH340 模块若 RTS 接 NRST，须避免 dtr=False,rts=True（会拉住复位无响应）
             self._ser.dtr = True
             self._ser.rts = True
-            time.sleep(0.35)
+            time.sleep(0.2)
             self._drain_boot_messages()
         except Exception:
             self.close()
@@ -59,13 +59,19 @@ class Stm32Client:
     def _drain_boot_messages(self) -> None:
         if self._ser is None:
             return
-        deadline = time.monotonic() + 0.5
+        deadline = time.monotonic() + 0.35
+        idle_rounds = 0
         while time.monotonic() < deadline:
             line = self._read_line_nowait()
             if line is None:
-                time.sleep(0.05)
+                idle_rounds += 1
+                if idle_rounds >= 2:
+                    return
+                time.sleep(0.03)
             elif line.startswith("OK:"):
                 return
+            else:
+                idle_rounds = 0
 
     def _read_line_nowait(self) -> Optional[str]:
         if self._ser is None:

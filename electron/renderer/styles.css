@@ -101,7 +101,7 @@ input[type="number"] {
 }
 
 .app.is-paper-away.is-window-focused .header {
-  --header-bg: #fffbeb;
+  --header-bg: #fde68a;
   --header-border: #fde68a;
   --header-title: #92400e;
   --header-muted: #b45309;
@@ -110,7 +110,7 @@ input[type="number"] {
 
 .app.is-paper-away.is-window-blurred .header {
   --header-bg: #fef3c7;
-  --header-border: #fcd34d;
+  --header-border: #e0e0de;
   --header-title: #b45309;
   --header-muted: #d97706;
   box-shadow: none;
@@ -132,6 +132,17 @@ input[type="number"] {
 .app.is-window-blurred .brand .app-icon {
   opacity: 0.72;
   filter: grayscale(0.35);
+}
+
+@keyframes paper-away-alert {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.45);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 7px rgba(217, 119, 6, 0);
+  }
 }
 
 .header-right {
@@ -528,6 +539,22 @@ input[type="number"] {
   height: 17px;
 }
 
+.status-chip-icon .paper-icon-warn {
+  display: none;
+}
+
+#statusChipPaper.is-paper-away .status-chip-icon {
+  animation: paper-away-alert 1.5s ease-in-out infinite;
+}
+
+#statusChipPaper.is-paper-away .paper-icon-doc {
+  display: none;
+}
+
+#statusChipPaper.is-paper-away .paper-icon-warn {
+  display: block;
+}
+
 .status-chip-text {
   display: flex;
   flex-direction: column;
@@ -578,7 +605,7 @@ input[type="number"] {
   border-color: #f87171;
   background: #fef2f2;
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
-  animation: status-chip-pulse 2.2s ease-in-out infinite;
+  /* animation: status-chip-pulse 2.2s ease-in-out infinite; */
 }
 .status-chip.tone-danger .status-chip-icon { background: #fecaca; color: #dc2626; }
 .status-chip.tone-danger .status-chip-value { color: #dc2626; font-weight: 800; }

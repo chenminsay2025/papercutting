@@ -74,25 +74,24 @@ ROWS = [
     ("", "30", "切纸机「原点」按钮一端", "COM4", "并联原点键", "万用表确认干触点后再并"),
     ("", "31", "切纸机「原点」按钮另一端", "NO4", "并联原点键", "K4 吸合时 COM4–NO4 闭合，模拟按一下"),
     ("", "32", "NC4", "（悬空）", "未使用", "不接"),
-    ("六、按键与指示灯", "33", "STM32 PB8", "切换按钮 → GND", "现场手动伸缩", "nologo 一体板；PA7=LCD RES；按一次缩回 3s，再按伸出 3s"),
-    ("", "34", "（nologo）PA6", "LCD 背光 BLK", "板载屏背光", "低电平亮；勿接 D3 串口 LED"),
+    ("六、按键与指示灯", "33", "STM32 PA7", "切换按钮 → GND", "现场手动伸缩", "按一次缩回 3s，再按伸出 3s，交替"),
+    ("", "34", "STM32 PA6", "D3 串口 LED → 330Ω → GND", "通信状态", "快闪=未连接；慢呼吸=已连接"),
     ("", "35", "STM32 PA4", "D1 缩回 LED → 330Ω → GND", "缩回指示", "缩回时常亮"),
     ("", "36", "STM32 PA5", "D2 伸出 LED → 330Ω → GND", "伸出指示", "伸出时常亮"),
-    ("", "37", "STM32 PB9", "D3 串口 LED → 330Ω → GND", "通信状态", "nologo 板；标准板仍用 PA6；快闪=未连接，慢呼吸=已连接"),
     ("六点五、槽型光电", "45", "槽型光电 VCC", "STM32 3.3V", "传感器供电", "模块 3.3~5V"),
     ("", "46", "槽型光电 GND", "系统 GND", "传感器共地", "与 STM32、继电器共地"),
     ("", "47", "槽型光电 DO", "STM32 PA8", "压纸检测", "遮挡=压纸中/ROD:HOME；未遮挡=未压纸/ROD:AWAY；缩回中自动停电机"),
     ("", "48", "槽型光电 AO", "（悬空）", "未使用", "本模块 AO 不起作用"),
-    ("六点六、板载 LCD", "49", "PB0", "LCD DC", "数据/命令", "nologo 一体板已焊；勿占用"),
-    ("", "50", "PB1", "LCD CS", "片选", "nologo 一体板已焊"),
-    ("", "51", "PB10", "LCD SCL", "时钟", "nologo 一体板已焊"),
-    ("", "52", "PB11", "LCD SDA/MOSI", "数据", "nologo 一体板已焊"),
-    ("", "53", "PA7", "LCD RES", "复位", "nologo 一体板已焊；勿接切换键"),
-    ("", "54", "PA6", "LCD 背光 BLK", "背光", "低电平亮；与 D3 串口灯不可共用"),
-    ("", "55", "PB12~PB15", "W25Q64 Flash SPI2", "板载 Flash", "固件勿改这些脚"),
-    ("七、软件", "38", "CutPPaper", "Cutting Master 4", "发送切割", "默认 Ctrl+P；须先激活目标窗口"),
-    ("", "39", "CutPPaper", "USB-TTL COM 口", "流程控制", "设备管理器确认 COM 号；烧录/拔 USB 后须重新连接"),
-    ("", "40", "CutPPaper", "—", "与 MCU 通信", "CH340 若 RTS 接 NRST：DTR=1、RTS=1，连接后等约 350ms"),
+    ("六点六、外接 OLED", "49", "OLED GND", "系统 GND", "OLED 共地", "与 STM32、继电器共地"),
+    ("", "50", "OLED VCC", "3.3V", "OLED 供电", "勿接 5V"),
+    ("", "51", "OLED SCL/CLK", "STM32 PB8", "SPI 时钟", "软件 SPI"),
+    ("", "52", "OLED SDA/DIN", "STM32 PB9", "SPI 数据", "软件 SPI"),
+    ("", "53", "OLED RES", "3.3V", "模块复位", "RST 直连 3.3V；固件不占 RST 脚"),
+    ("", "54", "OLED DC", "STM32 PB13", "数据/命令", "—"),
+    ("", "55", "OLED CS", "STM32 PB14", "片选", "—"),
+    ("七、软件", "38", "PaperCutting", "Cutting Master 4", "发送切割", "默认 Ctrl+P；须先激活目标窗口"),
+    ("", "39", "PaperCutting", "USB-TTL COM 口", "流程控制", "设备管理器确认 COM 号；烧录/拔 USB 后须重新连接"),
+    ("", "40", "PaperCutting", "—", "与 MCU 通信", "CH340 若 RTS 接 NRST：DTR=1、RTS=1，连接后等约 350ms"),
     ("九、线材", "41", "24V 电机线", "—", "电机供电", "0.75~1.5 mm²；尽量短，与信号线分开"),
     ("", "42", "STM32 信号线", "—", "GPIO/串口/SWD", "杜邦线；PA0~PA3、串口、SWD"),
     ("", "43", "继电器→切纸机", "—", "按钮并联线", "0.5 mm²；与电机线分开，可选屏蔽"),
@@ -106,12 +105,12 @@ def build_workbook() -> Workbook:
     ws = wb.active
     ws.title = "接线总表"
     ws.merge_cells("A1:F1")
-    ws["A1"].value = "CutPPaper 接线总表（nologo 0.96 TFT 一体板 · 四路继电器 · 115200 8N1 · 跳线 H）"
+    ws["A1"].value = "CutPPaper 接线总表（标准 C8T6 + 外接 0.96\" SPI OLED · 四路继电器 · 115200 8N1 · 跳线 H）"
     ws["A1"].font = Font(bold=True, size=13)
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
 
     ws.merge_cells("A2:F2")
-    ws["A2"].value = "电机 H 桥：NO1–NO2→24V+，NC1–NC2→GND，COM1/COM2→伸缩杆 · 压纸：PA8 遮挡=压纸中"
+    ws["A2"].value = "电机 H 桥：NO1–NO2→24V+，NC1–NC2→GND，COM1/COM2→伸缩杆 · OLED：PB8/PB9/PB13/PB14 · 压纸：PA8 遮挡=压纸中"
     ws["A2"].font = Font(size=10, color="475569")
     ws["A2"].alignment = Alignment(horizontal="center", wrap_text=True)
 
@@ -186,7 +185,8 @@ def build_workbook() -> Workbook:
         "电机：NO1–NO2 接 24V+，NC1–NC2 接 GND，COM1/COM2 接电机；NC2 悬空",
         "串口 TX/RX 交叉，115200；VCC 不接 MCU",
         "跳线 S1~S4 插 H；K3/K4 并机器前确认干触点",
-        "nologo 板：D3 串口 LED→PB9，切换键→PB8；PA6/PA7 为 LCD，勿外接",
+        "OLED：PB8/PB9/PB13/PB14；RES→3.3V；VCC 3.3V",
+        "PA6=D3 串口灯，PA7=切换键（勿与 OLED 引脚混淆）",
         "槽型光电 DO→PA8；遮挡时 ROD_SENSOR 应返回 ROD:HOME（压纸中）",
         "先不接 24V 测 K1/K2；再空载试转；最后并机器按钮联调",
     ]

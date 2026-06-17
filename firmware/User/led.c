@@ -3,6 +3,8 @@
 #include "motor.h"
 #include "protocol.h"
 #include "stm32f10x.h"
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_rcc.h"
 
 #define LED_FAST_BLINK_MS   120
 #define LED_BREATH_PERIOD_MS 2000
@@ -24,9 +26,11 @@ static void Led_UpdateMotor(void)
 	Led_SetPin(LED_MOTOR_GPIO, LED_EXTEND_PIN, state == MOTOR_STATE_EXTEND);
 }
 
-#if LED_USE_COM_PIN
 static void Led_UpdateCom(uint32_t ms)
 {
+	GPIO_TypeDef *com_gpio = Board_LedComGpio();
+	uint16_t com_pin = Board_LedComPin();
+
 	if (Protocol_IsCommActive())
 	{
 		uint32_t phase = ms % LED_BREATH_PERIOD_MS;
@@ -34,45 +38,49 @@ static void Led_UpdateCom(uint32_t ms)
 			? phase
 			: (LED_BREATH_PERIOD_MS - phase);
 		uint8_t on = ((ms % LED_BREATH_PWM_MS) * (LED_BREATH_PERIOD_MS / 2) / LED_BREATH_PWM_MS) < level;
-		Led_SetPin(LED_COM_GPIO, LED_COM_PIN, on);
+		Led_SetPin(com_gpio, com_pin, on);
 	}
 	else
 	{
-		Led_SetPin(LED_COM_GPIO, LED_COM_PIN, ((ms / LED_FAST_BLINK_MS) % 2) != 0);
+		Led_SetPin(com_gpio, com_pin, ((ms / LED_FAST_BLINK_MS) % 2) != 0);
 	}
 }
-#endif
 
 void Led_Init(void)
 {
 	GPIO_InitTypeDef gpio;
+	GPIO_TypeDef *com_gpio = Board_LedComGpio();
+	uint16_t com_pin = Board_LedComPin();
+	uint32_t motor_pins = LED_RETRACT_PIN | LED_EXTEND_PIN;
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 
 	gpio.GPIO_Mode = GPIO_Mode_Out_PP;
-	gpio.GPIO_Pin = LED_RETRACT_PIN | LED_EXTEND_PIN;
 	gpio.GPIO_Speed = GPIO_Speed_50MHz;
+
+	if (com_gpio == GPIOA)
+		motor_pins |= com_pin;
+
+	gpio.GPIO_Pin = motor_pins;
 	GPIO_Init(LED_MOTOR_GPIO, &gpio);
 
 	Led_SetPin(LED_MOTOR_GPIO, LED_RETRACT_PIN, 0);
 	Led_SetPin(LED_MOTOR_GPIO, LED_EXTEND_PIN, 0);
 
-#if LED_USE_COM_PIN
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-	gpio.GPIO_Pin = LED_COM_PIN;
-	GPIO_Init(LED_COM_GPIO, &gpio);
-	Led_SetPin(LED_COM_GPIO, LED_COM_PIN, 0);
-#endif
+	if (com_gpio == GPIOB)
+	{
+		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+		gpio.GPIO_Pin = com_pin;
+		GPIO_Init(com_gpio, &gpio);
+	}
+
+	Led_SetPin(com_gpio, com_pin, 0);
 }
 
 void Led_Tick(void)
 {
-#if LED_USE_COM_PIN
 	uint32_t ms = Board_GetTickMs();
 
 	Led_UpdateMotor();
 	Led_UpdateCom(ms);
-#else
-	Led_UpdateMotor();
-#endif
 }

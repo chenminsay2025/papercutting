@@ -5,8 +5,6 @@
 #include "board.h"
 #include "stm32f10x.h"
 
-#if BOARD_HAS_ONBOARD_LCD
-
 #define LCD_CS_LOW()    LCD_CS_GPIO->BRR = LCD_CS_PIN
 #define LCD_CS_HIGH()   LCD_CS_GPIO->BSRR = LCD_CS_PIN
 #define LCD_DC_CMD()    LCD_DC_GPIO->BRR = LCD_DC_PIN
@@ -395,4 +393,97 @@ void Lcd_DrawChinese(uint16_t x, uint16_t y, const char *s, uint16_t fg, uint16_
 	}
 }
 
-#endif /* BOARD_HAS_ONBOARD_LCD */
+static void Lcd_MosiAsInput(void)
+{
+	GPIO_InitTypeDef gpio;
+
+	gpio.GPIO_Pin = LCD_MOSI_PIN;
+	gpio.GPIO_Mode = GPIO_Mode_IPU;
+	gpio.GPIO_Speed = GPIO_Speed_2MHz;
+	GPIO_Init(LCD_MOSI_GPIO, &gpio);
+}
+
+static void Lcd_MosiAsOutput(void)
+{
+	GPIO_InitTypeDef gpio;
+
+	gpio.GPIO_Pin = LCD_MOSI_PIN;
+	gpio.GPIO_Mode = GPIO_Mode_Out_PP;
+	gpio.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(LCD_MOSI_GPIO, &gpio);
+	GPIO_SetBits(LCD_MOSI_GPIO, LCD_MOSI_PIN);
+}
+
+static uint8_t Lcd_ReadBus(void)
+{
+	uint8_t i;
+	uint8_t dat = 0;
+
+	for (i = 0; i < 8; i++)
+	{
+		dat <<= 1;
+		LCD_SCK_LOW();
+		if (GPIO_ReadInputDataBit(LCD_MOSI_GPIO, LCD_MOSI_PIN) == Bit_SET)
+			dat |= 0x01;
+		LCD_SCK_HIGH();
+	}
+	return dat;
+}
+
+static uint8_t Lcd_ProbeIdLooksValid(uint8_t b1, uint8_t b2, uint8_t b3)
+{
+	if ((b1 == 0x00 && b2 == 0x00 && b3 == 0x00) ||
+		(b1 == 0xFF && b2 == 0xFF && b3 == 0xFF))
+	{
+		return 0;
+	}
+	return 1;
+}
+
+uint8_t Lcd_Probe(void)
+{
+	uint8_t b1;
+	uint8_t b2;
+	uint8_t b3;
+
+	Lcd_GpioInit();
+
+	LCD_RST_LOW();
+	Board_DelayMs(20);
+	LCD_RST_HIGH();
+	Board_DelayMs(120);
+
+	LCD_CS_LOW();
+	LCD_DC_CMD();
+	Lcd_WritBus(0x04);
+	LCD_DC_DATA();
+
+	Lcd_MosiAsInput();
+	(void)Lcd_ReadBus();
+	b1 = Lcd_ReadBus();
+	b2 = Lcd_ReadBus();
+	b3 = Lcd_ReadBus();
+	Lcd_MosiAsOutput();
+	LCD_CS_HIGH();
+
+	if (!Lcd_ProbeIdLooksValid(b1, b2, b3))
+		return 0;
+
+	return 1;
+}
+
+void Lcd_GpioRelease(void)
+{
+	GPIO_InitTypeDef gpio;
+
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB, ENABLE);
+
+	gpio.GPIO_Mode = GPIO_Mode_IPU;
+	gpio.GPIO_Speed = GPIO_Speed_2MHz;
+	gpio.GPIO_Pin = LCD_BLK_PIN | LCD_RST_PIN;
+	GPIO_Init(GPIOA, &gpio);
+
+	gpio.GPIO_Pin = LCD_DC_PIN | LCD_CS_PIN | LCD_SCK_PIN | LCD_MOSI_PIN;
+	GPIO_Init(GPIOB, &gpio);
+}
+

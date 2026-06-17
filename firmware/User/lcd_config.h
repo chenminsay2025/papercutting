@@ -3,8 +3,14 @@
 
 /* nologo 0.96" IPS TFT — 引脚与 屏幕显示_源码示例/HARDWARE/LCD/lcd_init.h 一致
  * 例程: https://www.nologo.tech/product/stm32/STM32F103C8T6-C6T60.96TFT/example/example7.html
+ *
+ * BOARD_LCD_MODE（同一固件适配有屏 / 无屏 C8T6）:
+ *   0 = 上电自动检测 ST7735（检测失败则按无屏标准板：PA6=串口灯 PA7=按键）
+ *   1 = 强制 nologo 一体板（PA6=背光 PB9=串口灯 PB8=按键，启用 LCD UI）
+ *   2 = 强制无 LCD 标准板（不初始化 LCD 引脚）
+ * 若一体板 SPI 无法回读 ID，请将 BOARD_LCD_MODE 设为 1。有LCD BOARD_LCD_MODE 1  无2。
  */
-#define BOARD_HAS_ONBOARD_LCD   1
+#define BOARD_LCD_MODE          2
 #define BOARD_NOLOGO_096TFT     1
 #define LCD_USE_SOFT_SPI        1
 #define LCD_USE_NOLOGO_INIT     1

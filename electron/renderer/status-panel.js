@@ -136,13 +136,14 @@ const StatusPanel = (() => {
     const backend = formatBackend(snapshot);
 
     setChip("paper", els.paper, paper.text, paper.tone, paper.hint);
+    if (els.chips?.paper) {
+      els.chips.paper.classList.toggle("is-paper-away", paper.text === "未压纸");
+    }
     setChip("usb", els.usb, usb.text, usb.tone, usb.hint);
     setChip("backend", els.backend, backend.text, backend.tone, backend.hint);
 
     if (els.module) {
       els.module.classList.toggle("is-running", !!snapshot.running);
-      els.module.classList.toggle("is-connected", !!snapshot.connected);
-      els.module.classList.toggle("is-disconnected", !snapshot.connected);
     }
 
     const appRoot = document.getElementById("appRoot");

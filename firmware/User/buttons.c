@@ -1,8 +1,10 @@
 #include "buttons.h"
 #include "board.h"
 #include "motor.h"
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_rcc.h"
 
-/* 实体按键：PA7 单键切换缩回/伸出，每次运行固定 3 秒
+/* 实体按键：单键切换缩回/伸出，每次运行固定 3 秒
  * 一端接 GPIO，另一端接 GND，按下为低电平；与串口命令互不干扰
  */
 #define BUTTON_DEBOUNCE_MS  30
@@ -20,14 +22,14 @@ static uint8_t s_next_is_retract = 1;
 static uint32_t s_run_until_ms = 0;
 static uint8_t s_button_active = 0;
 
-static uint8_t Button_ReadPressed(uint16_t pin)
+static uint8_t Button_ReadPressed(void)
 {
-	return GPIO_ReadInputDataBit(BUTTON_GPIO, pin) == Bit_RESET;
+	return GPIO_ReadInputDataBit(Board_ButtonGpio(), Board_ButtonPin()) == Bit_RESET;
 }
 
-static void Button_Debounce(ButtonDeb_t *btn, uint16_t pin, uint32_t now)
+static void Button_Debounce(ButtonDeb_t *btn, uint32_t now)
 {
-	uint8_t raw = Button_ReadPressed(pin);
+	uint8_t raw = Button_ReadPressed();
 
 	if (raw != btn->raw_last)
 	{
@@ -64,17 +66,19 @@ static void Button_StopTimedRun(void)
 void Button_Init(void)
 {
 	GPIO_InitTypeDef gpio;
+	GPIO_TypeDef *btn_gpio = Board_ButtonGpio();
+	uint16_t btn_pin = Board_ButtonPin();
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-	if (BUTTON_GPIO == GPIOB)
+	if (btn_gpio == GPIOB)
 		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
 
 	gpio.GPIO_Mode = GPIO_Mode_IPU;
-	gpio.GPIO_Pin = BUTTON_TOGGLE_PIN;
+	gpio.GPIO_Pin = btn_pin;
 	gpio.GPIO_Speed = GPIO_Speed_2MHz;
-	GPIO_Init(BUTTON_GPIO, &gpio);
+	GPIO_Init(btn_gpio, &gpio);
 
-	s_toggle_btn.raw_last = Button_ReadPressed(BUTTON_TOGGLE_PIN);
+	s_toggle_btn.raw_last = Button_ReadPressed();
 	s_toggle_btn.stable = s_toggle_btn.raw_last;
 	s_toggle_btn.change_tick = Board_GetTickMs();
 	s_last_stable_pressed = s_toggle_btn.stable;
@@ -87,7 +91,7 @@ void Button_Tick(void)
 {
 	uint32_t now = Board_GetTickMs();
 
-	Button_Debounce(&s_toggle_btn, BUTTON_TOGGLE_PIN, now);
+	Button_Debounce(&s_toggle_btn, now);
 
 	if (s_toggle_btn.stable && !s_last_stable_pressed && s_run_until_ms == 0)
 	{

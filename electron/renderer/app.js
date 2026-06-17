@@ -239,6 +239,7 @@ const state = {
   pythonReady: false,
   pythonExit: false,
   autoConnectInProgress: false,
+  connectInFlight: false,
   phaseLabel: "空闲",
   progressElapsed: 0,
   progressTotal: 0,
@@ -1731,7 +1732,7 @@ function updateConnectionModal() {
     els.modalConnectBtn.classList.remove("hidden");
     els.modalDisconnectBtn.classList.add("hidden");
   }
-  els.modalConnectBtn.disabled = !canChange;
+  els.modalConnectBtn.disabled = !canChange || state.connectInFlight;
   els.modalDisconnectBtn.disabled = !canChange;
   els.simulationMode.disabled = state.running || state.connected;
   els.portSelect.disabled = state.running || state.connected;
@@ -2335,8 +2336,37 @@ async function refreshPorts() {
 }
 
 async function connectDevice() {
-  await saveConfigSilently();
-  await sendCommand({ cmd: "connect", port: els.portSelect.value });
+  if (state.connectInFlight) return;
+  state.connectInFlight = true;
+  setConnectButtonBusy(true);
+  try {
+    const config = readConfigFromForm();
+    const response = await sendCommand({
+      cmd: "connect",
+      port: els.portSelect.value,
+      config,
+    });
+    if (response.event === "error") {
+      throw new Error(response.message || "连接失败");
+    }
+    applyConfigToForm(config);
+  } finally {
+    state.connectInFlight = false;
+    setConnectButtonBusy(false);
+  }
+}
+
+function setConnectButtonBusy(busy) {
+  if (!els.modalConnectBtn) return;
+  if (busy) {
+    els.modalConnectBtn.disabled = true;
+    els.modalConnectBtn.textContent = "连接中…";
+    els.modalConnectBtn.dataset.busy = "1";
+    return;
+  }
+  delete els.modalConnectBtn.dataset.busy;
+  els.modalConnectBtn.textContent = "连接";
+  updateConnectionModal();
 }
 
 function shouldAutoConnect() {
@@ -2654,6 +2684,7 @@ els.connectionCloseBtn.addEventListener("click", closeConnectionModal);
 els.connectionBackdrop.addEventListener("click", closeConnectionModal);
 
 els.modalConnectBtn.addEventListener("click", async () => {
+  if (state.connectInFlight) return;
   try {
     await connectDevice();
     closeConnectionModal();

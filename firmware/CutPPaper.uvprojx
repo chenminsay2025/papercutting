@@ -731,49 +731,39 @@
               <FilePath>.\User\rod_sensor.h</FilePath>
             </File>
             <File>
-              <FileName>lcd_config.h</FileName>
+              <FileName>oled_config.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\User\lcd_config.h</FilePath>
+              <FilePath>.\User\oled_config.h</FilePath>
             </File>
             <File>
-              <FileName>lcd_st7735.c</FileName>
+              <FileName>oled_ssd1306.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\User\lcd_st7735.c</FilePath>
+              <FilePath>.\User\oled_ssd1306.c</FilePath>
             </File>
             <File>
-              <FileName>lcd_st7735.h</FileName>
+              <FileName>oled_ssd1306.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\User\lcd_st7735.h</FilePath>
+              <FilePath>.\User\oled_ssd1306.h</FilePath>
             </File>
             <File>
-              <FileName>lcd_font.c</FileName>
+              <FileName>oled_font_gb16.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\User\lcd_font.c</FilePath>
+              <FilePath>.\User\oled_font_gb16.c</FilePath>
             </File>
             <File>
-              <FileName>lcd_font.h</FileName>
+              <FileName>oled_font_gb16.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\User\lcd_font.h</FilePath>
+              <FilePath>.\User\oled_font_gb16.h</FilePath>
             </File>
             <File>
-              <FileName>lcd_font_gb16.c</FileName>
+              <FileName>oled_ui.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\User\lcd_font_gb16.c</FilePath>
+              <FilePath>.\User\oled_ui.c</FilePath>
             </File>
             <File>
-              <FileName>lcd_font_gb16.h</FileName>
+              <FileName>oled_ui.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\User\lcd_font_gb16.h</FilePath>
-            </File>
-            <File>
-              <FileName>lcd_ui.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\User\lcd_ui.c</FilePath>
-            </File>
-            <File>
-              <FileName>lcd_ui.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\User\lcd_ui.h</FilePath>
+              <FilePath>.\User\oled_ui.h</FilePath>
             </File>
             <File>
               <FileName>protocol.c</FileName>

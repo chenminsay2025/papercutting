@@ -1,6 +1,6 @@
 {
   "serial": {
-    "port": "COM11",
+    "port": "COM3",
     "baudrate": 115200,
     "timeout_ms": 2000
   },
@@ -14,7 +14,7 @@
     "cut_wait": 100
   },
   "cutting_master": {
-    "window_title_contains": "记事本",
+    "window_title_contains": "工作簿1 - Excel",
     "send_hotkey": "ctrl+a"
   },
   "simulated_buttons": {
@@ -42,13 +42,14 @@
   },
   "workflow_steps": [
     {
-      "id": "step-1781494663292-346je",
-      "type": "confirm_dialog",
+      "id": "step-1781671873900-hapyn",
+      "type": "condition_check",
       "enabled": true,
-      "label": "弹窗确认",
-      "note": "确定纸张已经放置好。",
-      "delay_ms": 500,
-      "prompt_text": "纸张放好了没？"
+      "label": "如果·压纸=压纸中",
+      "note": "",
+      "delay_ms": 0,
+      "status_key": "paper",
+      "expected_value": "home"
     },
     {
       "id": "step-retract",
@@ -65,8 +66,8 @@
       "enabled": true,
       "label": "激活窗口",
       "note": "激活目标窗口并聚焦",
-      "delay_ms": 800,
-      "window_keyword": "记事本"
+      "delay_ms": 2000,
+      "window_keyword": "工作簿1 - Excel"
     },
     {
       "id": "step-hotkey",
@@ -74,7 +75,7 @@
       "enabled": true,
       "label": "按键操作",
       "note": "执行快捷键操作",
-      "delay_ms": 5000,
+      "delay_ms": 1000,
       "hotkey": "ctrl+a",
       "press_count": 1,
       "press_interval_ms": 0
@@ -86,7 +87,7 @@
       "label": "按键操作",
       "note": "执行相关键盘操作",
       "delay_ms": 1000,
-      "hotkey": "esc",
+      "hotkey": "down",
       "press_count": 1,
       "press_interval_ms": 0
     },
@@ -127,15 +128,6 @@
       "duration_ms": 2000
     },
     {
-      "id": "step-1781591432744-2kxsn",
-      "type": "confirm_dialog",
-      "enabled": true,
-      "label": "弹窗确认",
-      "note": "确定纸张已经放置好。",
-      "delay_ms": 500,
-      "prompt_text": "未压纸"
-    },
-    {
       "id": "step-pulse-b",
       "type": "pulse_b",
       "enabled": true,
@@ -143,6 +135,31 @@
       "note": "继电器No4短触",
       "delay_ms": 500,
       "duration_ms": 500
+    },
+    {
+      "id": "step-1781671873901-xyk49",
+      "type": "else_branch",
+      "enabled": true,
+      "label": "否则",
+      "note": "",
+      "delay_ms": 0
+    },
+    {
+      "id": "step-1781671900677-6uz4g",
+      "type": "confirm_dialog",
+      "enabled": true,
+      "label": "弹窗确认",
+      "note": "",
+      "delay_ms": 0,
+      "prompt_text": "警告：没有压纸"
+    },
+    {
+      "id": "step-1781671873901-xru3b",
+      "type": "end_if",
+      "enabled": true,
+      "label": "结束如果",
+      "note": "",
+      "delay_ms": 0
     }
   ]
 }

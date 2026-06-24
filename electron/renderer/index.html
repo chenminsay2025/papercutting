@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PaperCutting</title>
+    <link rel="icon" type="image/png" href="../assets/icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app is-window-focused" id="appRoot">
+      <header class="header">
+        <div class="brand">
+          <img class="app-icon" src="../assets/icon.png" alt="CP" width="28" height="28" />
+          <h1>PaperCutting</h1>
+        </div>
+        <div class="header-right">
+          <div class="header-actions">
+            <button type="button" id="connBar" class="conn-bar conn-bar-icon" title="USB 连接" aria-label="USB 连接">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22v-5"></path>
+                <path d="M9 8V2"></path>
+                <path d="M15 8V2"></path>
+                <path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"></path>
+              </svg>
+              <span id="connStatusDot" class="conn-status-dot" aria-hidden="true"></span>
+            </button>
+            <button id="settingsBtn" type="button" class="icon-btn" title="设置与关于" aria-label="设置">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+            <button id="logBtn" type="button" class="btn btn-secondary btn-xs" title="打开日志窗口">日志</button>
+          </div>
+          <div class="window-controls">
+            <button id="winMinimizeBtn" type="button" class="win-btn win-btn-minimize" title="最小化" aria-label="最小化">
+              <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"></path></svg>
+            </button>
+            <button id="winCloseBtn" type="button" class="win-btn win-btn-close" title="关闭" aria-label="关闭">
+              <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"></path></svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="main-single">
+        <section class="panel workflow-panel">
+          <div class="status-module" id="statusModule">
+            <div class="status-line">
+              <div class="status-inline">
+                <div class="status-chip" id="statusChipPaper">
+                  <span class="status-chip-icon" id="statusChipPaperIcon" aria-hidden="true">
+                    <svg class="paper-icon-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M8 13h8"></path><path d="M8 17h5"></path></svg>
+                    <svg class="paper-icon-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  </span>
+                  <span class="status-chip-text">
+                    <span class="status-chip-label">压纸</span>
+                    <span id="statusPaper" class="status-chip-value">—</span>
+                  </span>
+                </div>
+                <div class="status-chip" id="statusChipObstacle">
+                  <span class="status-chip-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                  </span>
+                  <span class="status-chip-text">
+                    <span class="status-chip-label">遮挡</span>
+                    <span id="statusObstacle" class="status-chip-value">—</span>
+                  </span>
+                </div>
+                <div class="status-chip status-chip-usb status-seg-clickable" id="statusUsbRow" role="button" tabindex="0" title="点击管理 USB 连接">
+                  <span class="status-chip-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"></path><path d="M9 8V2"></path><path d="M15 8V2"></path><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"></path></svg>
+                  </span>
+                  <span class="status-chip-text">
+                    <span class="status-chip-label">USB</span>
+                    <span id="statusUsb" class="status-chip-value">未连接</span>
+                  </span>
+                </div>
+                <div class="status-chip" id="statusChipBackend">
+                  <span class="status-chip-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="6" rx="1"></rect><rect x="2" y="15" width="20" height="6" rx="1"></rect><path d="M6 9v6"></path><path d="M18 9v6"></path></svg>
+                  </span>
+                  <span class="status-chip-text">
+                    <span class="status-chip-label">后端</span>
+                    <span id="statusBackend" class="status-chip-value">启动中</span>
+                  </span>
+                </div>
+              </div>
+              <div class="status-line-tail">
+                <span id="statusPhase" class="status-phase">空闲</span>
+                <span id="statusProgressMeta" class="status-progress-meta">0/0ms</span>
+                <span id="cycleHint" class="status-cycle-hint">~0s</span>
+                <button type="button" id="statusRefreshBtn" class="btn btn-ghost btn-xs" title="刷新设备状态">刷新</button>
+              </div>
+            </div>
+            <div class="progress-bar status-progress-bar"><div id="progressFill"></div></div>
+          </div>
+
+          <div class="step-editor-header">
+            <span class="step-editor-title">执行步骤</span>
+            <span class="step-editor-hint">拖拽排序 · 如果/否则/结束如果 组成条件分支</span>
+          </div>
+
+          <div class="step-table-wrap">
+            <table class="step-table">
+              <colgroup>
+                <col id="colDrag" class="col-drag-fixed" />
+                <col id="colEnable" />
+                <col id="colName" />
+                <col id="colSettings" />
+                <col id="colActions" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th class="col-drag" aria-label="排序"></th>
+                  <th class="col-enable">启用<span class="col-resizer" data-col="enable" title="拖拽调整列宽"></span></th>
+                  <th class="col-name">名称<span class="col-resizer" data-col="name" title="拖拽调整列宽"></span></th>
+                  <th class="col-settings">设置<span class="col-resizer" data-col="settings" title="拖拽调整列宽"></span></th>
+                  <th class="col-actions">操作<span class="col-resizer" data-col="actions" title="拖拽调整列宽"></span></th>
+                </tr>
+              </thead>
+              <tbody id="stepEditor"></tbody>
+            </table>
+          </div>
+
+          <div class="step-toolbar" id="stepToolbar">
+            <div class="menu-anchor">
+              <button id="addStepMenuBtn" type="button" class="btn btn-secondary btn-xs menu-trigger" aria-expanded="false">添加动作 ▾</button>
+              <div id="addStepMenu" class="dropdown-menu hidden" role="menu"></div>
+            </div>
+            <div class="menu-anchor">
+              <button id="loopMenuBtn" type="button" class="btn btn-secondary btn-xs menu-trigger" aria-expanded="false">循环 ▾</button>
+              <div id="loopMenu" class="dropdown-menu dropdown-menu-form hidden" role="menu">
+                <label class="dropdown-toggle-row">
+                  <input id="autoLoop" type="checkbox" />
+                  <span>启用自动循环</span>
+                </label>
+                <label class="dropdown-field">
+                  <span class="dropdown-field-label">轮间间隔 (ms)</span>
+                  <input id="loopIntervalMs" type="number" min="0" step="500" value="3000" title="每轮完成后等待多久再开始下一轮；0 表示立即开始" />
+                </label>
+                <button type="button" class="dropdown-item" id="resetLoopBtn">轮次清零（LCD）</button>
+              </div>
+            </div>
+            <div class="menu-anchor">
+              <button id="actionFileMenuBtn" type="button" class="btn btn-secondary btn-xs menu-trigger" aria-expanded="false">动作文件 ▾</button>
+              <div id="actionFileMenu" class="dropdown-menu hidden" role="menu">
+                <button type="button" class="dropdown-item" data-file-action="save">保存到库…</button>
+                <button type="button" class="dropdown-item" data-file-action="import">从文件导入…</button>
+                <button type="button" class="dropdown-item" data-file-action="export">导出当前到文件…</button>
+                <button type="button" class="dropdown-item" data-file-action="manage">管理…</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button id="startBtn" type="button" class="btn btn-primary btn-action"><span class="start-btn-label">执行动作</span></button>
+            <button id="estopBtn" type="button" class="btn btn-danger btn-compact">急停</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="connectionModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" id="connectionBackdrop"></div>
+      <div class="modal-panel" role="dialog" aria-labelledby="connectionTitle">
+        <div class="modal-header">
+          <h2 id="connectionTitle">连接</h2>
+          <button id="connectionCloseBtn" type="button" class="btn btn-ghost btn-xs modal-close" title="关闭">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="connModalStatus" class="conn-modal-status">当前未连接设备</div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">运行模式</div>
+            <div class="inline-toggles">
+              <label class="toggle-row"><input id="simulationMode" type="checkbox" /><span>模拟硬件（不驱动串口）</span></label>
+              <label class="toggle-row"><input id="autoConnectMode" type="checkbox" checked /><span>启动时自动连接</span></label>
+            </div>
+          </div>
+
+          <div class="settings-section" id="serialPanel">
+            <div class="settings-section-title">串口</div>
+            <div class="serial-block">
+              <label class="serial-field serial-port">
+                端口
+                <select id="portSelect" title="串口"></select>
+              </label>
+              <div class="serial-actions">
+                <label class="serial-field">
+                  波特率
+                  <input id="baudrate" type="number" min="9600" step="100" title="波特率" />
+                </label>
+                <label class="serial-field">
+                  超时 (ms)
+                  <input id="timeoutMs" type="number" min="500" step="100" title="超时 ms" />
+                </label>
+                <div class="serial-btns">
+                  <button id="refreshPortsBtn" type="button" class="btn btn-secondary btn-xs">刷新端口</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="modalConnectBtn" type="button" class="btn btn-primary">连接</button>
+          <button id="modalDisconnectBtn" type="button" class="btn btn-secondary hidden">断开</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="settingsModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" id="settingsBackdrop"></div>
+      <div class="modal-panel" role="dialog" aria-labelledby="settingsTitle">
+        <div class="modal-header">
+          <h2 id="settingsTitle">设置</h2>
+          <button id="settingsCloseBtn" type="button" class="btn btn-ghost btn-xs modal-close" title="关闭">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="settings-section">
+            <div class="settings-section-title">关于</div>
+            <div class="about-card">
+              <img class="about-icon" src="../assets/icon.png" alt="CP" width="40" height="40" />
+              <div class="about-meta">
+                <div class="about-name">PaperCutting</div>
+                <div class="about-version">版本 1.0.0</div>
+                <p class="about-desc">切纸自动控制 · 放纸 → 开始 → 自动流程</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">快捷键</div>
+            <p class="modal-hint">全局快捷键，在任意窗口按下可开始执行动作（需已连接设备且未在运行中）。</p>
+            <label class="serial-field">
+              执行动作
+              <div class="settings-hotkey-row">
+                <button id="startHotkeyBtn" type="button" class="step-hotkey-btn settings-hotkey-btn" title="点击设置快捷键">F5</button>
+                <button id="startHotkeyClearBtn" type="button" class="btn btn-ghost btn-xs">清除</button>
+              </div>
+            </label>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">继电器名称</div>
+            <p class="modal-hint">用于步骤列表与「添加动作」菜单显示。K3 对应继续脉冲（PA2），K4 对应原点脉冲（PA3）。</p>
+            <div class="serial-block">
+              <label class="serial-field">
+                继电器 K3
+                <input id="relayK3Name" type="text" maxlength="16" placeholder="继电器K3" title="pulse_a 步骤显示名称" />
+              </label>
+              <label class="serial-field">
+                继电器 K4
+                <input id="relayK4Name" type="text" maxlength="16" placeholder="继电器K4" title="pulse_b 步骤显示名称" />
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="saveGroupModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" id="saveGroupBackdrop"></div>
+      <div class="modal-panel modal-panel-sm" role="dialog" aria-labelledby="saveGroupTitle">
+        <div class="modal-header">
+          <h2 id="saveGroupTitle">保存到库</h2>
+          <button id="saveGroupCloseBtn" type="button" class="btn btn-ghost btn-xs modal-close" title="关闭">×</button>
+        </div>
+        <div class="modal-body">
+          <label class="serial-field">
+            动作组名称
+            <input id="groupNameInput" type="text" placeholder="如：标准切割" maxlength="64" />
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button id="saveGroupConfirmBtn" type="button" class="btn btn-primary">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="manageGroupsModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" id="manageGroupsBackdrop"></div>
+      <div class="modal-panel" role="dialog" aria-labelledby="manageGroupsTitle">
+        <div class="modal-header">
+          <h2 id="manageGroupsTitle">动作文件管理</h2>
+          <button id="manageGroupsCloseBtn" type="button" class="btn btn-ghost btn-xs modal-close" title="关闭">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-hint">软件内置库中的动作组，可打开、导出或删除。</p>
+          <div id="manageGroupsList" class="manage-groups-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirmPromptModal" class="modal confirm-prompt-modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" id="confirmPromptBackdrop"></div>
+      <div class="confirm-prompt-panel" id="confirmPromptPanel" role="dialog" aria-modal="true" aria-labelledby="confirmPromptMessage" tabindex="-1">
+        <div class="confirm-prompt-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M12 8v5"></path>
+            <circle cx="12" cy="16.5" r="0.75" fill="currentColor" stroke="none"></circle>
+          </svg>
+        </div>
+        <div id="confirmPromptStep" class="confirm-prompt-step"></div>
+        <p id="confirmPromptMessage" class="confirm-prompt-message"></p>
+        <p id="confirmPromptDetail" class="confirm-prompt-detail hidden"></p>
+        <div class="confirm-prompt-actions">
+          <button id="confirmPromptCancelBtn" type="button" class="btn btn-secondary btn-compact">取消</button>
+          <button id="confirmPromptOkBtn" type="button" class="btn btn-primary btn-compact">确认继续</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="stepNoteModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" id="stepNoteBackdrop"></div>
+      <div class="modal-panel step-note-panel" role="dialog" aria-labelledby="stepNoteTitle">
+        <div class="modal-header">
+          <h2 id="stepNoteTitle">步骤说明</h2>
+          <button id="stepNoteCloseBtn" type="button" class="btn btn-ghost btn-xs modal-close" title="关闭">×</button>
+        </div>
+        <div class="modal-body">
+          <label class="serial-field">
+            说明文字
+            <textarea id="stepNoteInput" rows="4" maxlength="500" placeholder="可选，显示在步骤名称下方"></textarea>
+          </label>
+        </div>
+        <div class="modal-footer step-note-footer">
+          <button id="stepNoteClearBtn" type="button" class="btn btn-secondary">清空</button>
+          <button id="stepNoteSaveBtn" type="button" class="btn btn-primary">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="stepDelayModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" id="stepDelayBackdrop"></div>
+      <div class="modal-panel step-delay-panel" role="dialog" aria-labelledby="stepDelayTitle">
+        <div class="modal-header">
+          <h2 id="stepDelayTitle">步骤延时</h2>
+          <button id="stepDelayCloseBtn" type="button" class="btn btn-ghost btn-xs modal-close" title="关闭">×</button>
+        </div>
+        <div class="modal-body">
+          <label class="serial-field">
+            延时 (ms)
+            <input id="stepDelayInput" type="number" min="0" step="50" value="0" />
+          </label>
+          <p class="modal-hint">步骤主动作完成后继续等待的时间，显示在设置列。</p>
+        </div>
+        <div class="modal-footer step-note-footer">
+          <button id="stepDelayClearBtn" type="button" class="btn btn-secondary">清零</button>
+          <button id="stepDelaySaveBtn" type="button" class="btn btn-primary">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="hotkeyPickerModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" id="hotkeyPickerBackdrop"></div>
+      <div class="modal-panel hotkey-picker-panel" role="dialog" aria-labelledby="hotkeyPickerTitle">
+        <div class="modal-header">
+          <h2 id="hotkeyPickerTitle">选择按键</h2>
+          <button id="hotkeyPickerCloseBtn" type="button" class="btn btn-ghost btn-xs modal-close" title="关闭">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="hotkeyCaptureZone" class="hotkey-capture-zone" tabindex="0">
+            <span class="hotkey-capture-label">请按下快捷键</span>
+            <span id="hotkeyCaptureValue" class="hotkey-capture-value">—</span>
+          </div>
+          <p class="modal-hint">支持组合键（如 Ctrl+P）；格式与 Python keyboard 库一致，执行前会自动切换英文输入。</p>
+          <div class="hotkey-preset-title">常用快捷键</div>
+          <div id="hotkeyPresetGrid" class="hotkey-preset-grid"></div>
+        </div>
+        <div class="modal-footer step-note-footer">
+          <button id="hotkeyPickerCancelBtn" type="button" class="btn btn-secondary">取消</button>
+          <button id="hotkeyPickerSaveBtn" type="button" class="btn btn-primary">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="windowPickerMenu" class="window-picker-menu dropdown-menu hidden" role="listbox" aria-label="选择窗口">
+      <input id="windowPickerSearch" type="text" class="window-picker-search" placeholder="搜索窗口..." autocomplete="off" />
+      <div id="windowPickerList" class="window-picker-list"></div>
+    </div>
+
+    <script src="status-panel.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

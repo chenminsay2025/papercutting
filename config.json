@@ -1,0 +1,200 @@
+{
+  "serial": {
+    "port": "COM5",
+    "baudrate": 115200,
+    "timeout_ms": 2000
+  },
+  "timings_ms": {
+    "retract": 500,
+    "extend": 500,
+    "relay_pulse": 200,
+    "before_send_keys": 200,
+    "after_focus_ms": 500,
+    "after_hotkey_ms": 1000,
+    "cut_wait": 100
+  },
+  "cutting_master": {
+    "window_title_contains": "工作簿1 - Excel",
+    "send_hotkey": "ctrl+a"
+  },
+  "simulated_buttons": {
+    "button_b": "继电器K3",
+    "button_a": "继电器K4"
+  },
+  "relay_labels": {
+    "relay_k3": "继电器K3",
+    "relay_k4": "继电器K4"
+  },
+  "app": {
+    "simulation_mode": false,
+    "auto_loop": false,
+    "loop_interval_ms": 100,
+    "start_hotkey": "alt+right",
+    "auto_connect": false
+  },
+  "ui": {
+    "step_table_columns": {
+      "enable": 44,
+      "name": 104,
+      "settings": 208,
+      "actions": 58
+    }
+  },
+  "workflow_steps": [
+    {
+      "id": "step-1781671873900-hapyn",
+      "type": "condition_check",
+      "enabled": false,
+      "label": "如果·压纸=压纸中",
+      "note": "",
+      "delay_ms": 0,
+      "status_key": "paper",
+      "expected_value": "home"
+    },
+    {
+      "id": "step-focus",
+      "type": "focus_window",
+      "enabled": false,
+      "label": "激活窗口",
+      "note": "激活目标窗口并聚焦",
+      "delay_ms": 2000,
+      "window_keyword": "工作簿1 - Excel"
+    },
+    {
+      "id": "step-hotkey",
+      "type": "send_hotkey",
+      "enabled": false,
+      "label": "按键操作",
+      "note": "执行快捷键操作",
+      "delay_ms": 1000,
+      "hotkey": "ctrl+a",
+      "press_count": 1,
+      "press_interval_ms": 0
+    },
+    {
+      "id": "step-1781504164337-opq3h",
+      "type": "send_hotkey",
+      "enabled": false,
+      "label": "按键操作",
+      "note": "执行相关键盘操作",
+      "delay_ms": 1000,
+      "hotkey": "down",
+      "press_count": 1,
+      "press_interval_ms": 0
+    },
+    {
+      "id": "step-1781508029867-ubbnd",
+      "type": "restore_app",
+      "enabled": false,
+      "label": "回到窗口",
+      "note": "",
+      "delay_ms": 0,
+      "window_keyword": "PaperCutting"
+    },
+    {
+      "id": "step-pulse-a",
+      "type": "pulse_a",
+      "enabled": true,
+      "label": "继电器K3",
+      "note": "继电器No3短触",
+      "delay_ms": 500,
+      "duration_ms": 500
+    },
+    {
+      "id": "step-cut-wait",
+      "type": "wait",
+      "enabled": true,
+      "label": "等待切割",
+      "note": "切割过程中...",
+      "delay_ms": 500,
+      "duration_ms": 1000
+    },
+    {
+      "id": "step-retract",
+      "type": "retract",
+      "enabled": true,
+      "label": "伸缩杆缩回",
+      "note": "压杆回位压住纸张",
+      "delay_ms": 500,
+      "duration_ms": 2000
+    },
+    {
+      "id": "step-1782311440548-1xx9q",
+      "type": "wait_status",
+      "enabled": true,
+      "label": "等待·遮挡=有遮挡",
+      "note": "",
+      "delay_ms": 0,
+      "status_key": "obstacle",
+      "expected_value": "blocked",
+      "timeout_s": 60
+    },
+    {
+      "id": "step-extend",
+      "type": "extend",
+      "enabled": true,
+      "label": "伸缩杆伸出",
+      "note": "压杆向前推松开压轮",
+      "delay_ms": 500,
+      "duration_ms": 2000
+    },
+    {
+      "id": "step-pulse-b",
+      "type": "pulse_b",
+      "enabled": true,
+      "label": "继电器K4",
+      "note": "继电器No4短触",
+      "delay_ms": 500,
+      "duration_ms": 500
+    },
+    {
+      "id": "step-1781671873901-xyk49",
+      "type": "else_branch",
+      "enabled": false,
+      "label": "否则",
+      "note": "",
+      "delay_ms": 0
+    },
+    {
+      "id": "step-1781671900677-6uz4g",
+      "type": "confirm_dialog",
+      "enabled": false,
+      "label": "弹窗确认",
+      "note": "",
+      "delay_ms": 0,
+      "prompt_text": "警告：没有压纸"
+    },
+    {
+      "id": "step-1781671873901-xru3b",
+      "type": "end_if",
+      "enabled": false,
+      "label": "结束如果",
+      "note": "",
+      "delay_ms": 0
+    },
+    {
+      "id": "step-1782311294779-k1vcp",
+      "type": "buzzer",
+      "enabled": true,
+      "label": "蜂鸣器",
+      "note": "",
+      "delay_ms": 0,
+      "pattern": "continuous",
+      "on_ms": 30,
+      "gap_ms": 50,
+      "repeat": 1,
+      "duration_ms": 100
+    },
+    {
+      "id": "step-1782316087183-b2fji",
+      "type": "wait_status",
+      "enabled": false,
+      "label": "等待·遮挡=有遮挡",
+      "note": "",
+      "delay_ms": 0,
+      "status_key": "obstacle",
+      "expected_value": "blocked",
+      "timeout_s": 60
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+Void ST7789VCMI24panelinitialcode(void) 
+{ 
+//-----------------------------------ST7789V reset sequence------------------------------------// 
+LCD_RESET=1; 
+Delay(1);         //Delay 1ms 
+LCD_RESET=0; 
+Delay(10);         //Delay 10ms 
+LCD_RESET=1; 
+Delay(120);        //Delay 120ms 
+//---------------------------------------------------------------------------------------------------// 
+WriteComm(0x11); 
+Delay(120));        //Delay 120ms 
+//--------------------------------------Display Setting------------------------------------------// 
+WriteComm(0x36); 
+WriteData(0x00); 
+WriteComm(0x3a); 
+WriteData(0x05); 
+//--------------------------------ST7789V Frame rate setting----------------------------------// 
+WriteComm(0xb2); 
+WriteData(0x0c); 
+WriteData(0x0c); 
+WriteData(0x00); 
+WriteData(0x33); 
+WriteData(0x33); 
+WriteComm(0xb7); 
+WriteData(0x35); 
+//---------------------------------ST7789V Power setting--------------------------------------// 
+WriteComm(0xbb); 
+WriteData(0x2b); 
+WriteComm(0xc0); 
+WriteData(0x2c); 
+WriteComm(0xc2); 
+WriteData(0x01); 
+WriteComm(0xc3); 
+WriteData(0x11); 
+WriteComm(0xc4); 
+WriteData(0x20); 
+WriteComm(0xc6); 
+WriteData(0x0f); 
+WriteComm(0xd0); 
+WriteData(0xa4); 
+WriteData(0xa1); 
+//--------------------------------ST7789V gamma setting---------------------------------------// 
+WriteComm(0xe0); 
+WriteData(0xd0); 
+WriteData(0x00); 
+WriteData(0x05); 
+WriteData(0x0e); 
+WriteData(0x15); 
+WriteData(0x0d); 
+WriteData(0x37); 
+WriteData(0x43); 
+WriteData(0x47); 
+WriteData(0x09); 
+WriteData(0x15); 
+WriteData(0x12); 
+WriteData(0x16); 
+WriteData(0x19); 
+WriteComm(0xe1); 
+WriteData(0xd0); 
+WriteData(0x00); 
+WriteData(0x05); 
+WriteData(0x0d); 
+WriteData(0x0c); 
+WriteData(0x06); 
+WriteData(0x2d); 
+WriteData(0x44); 
+WriteData(0x40); 
+WriteData(0x0e); 
+WriteData(0x1c); 
+WriteData(0x18); 
+WriteData(0x16); 
+WriteData(0x19); 
+WriteComm(0x29); 
+} 
+
+Void ST7789VPanelTurnOnDisplay (void) 
+{ 
+WriteComm(0x29); 
+} 
+ 
+Void ST7789VPanelTurnOffDisplay (void) 
+{ 
+WriteComm(0x28); 
+} 
+ 
+Void ST7789VPanelTurnOnPartial (void) 
+{ 
+WriteComm(0x30); 
+WriteData(0x00); 
+Write PSL);  //PSL: Start Line 
+WriteData(0x00); 
+Write PEL);  //PEL: End Line 
+WriteComm(0x12); 
+} 
+ 
+Void ST7789VPanelTurnOffPartial (void) 
+{ 
+WriteComm(0x13); 
+} 
+ 
+Void ST7789VPanelTurnOnIdle (void) 
+{ 
+WriteComm(0x39); 
+} 
+ 
+Void ST7789VPanelTurnOffIdle (void) 
+{ 
+WriteComm(0x38); 
+} 
+ 
+ 
+Void ST7789VPanelSleepInMode (void) 
+{ 
+WriteComm(0x10); 
+Delay (120)); 
+} 
+ 
+Void ST7789VPanelSleepOutMode (void) 
+{ 
+WriteComm(0x11); 
+Delay (120)); 
+} 
+ 

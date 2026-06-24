@@ -1,0 +1,28 @@
+#include "lcd_ui_labels.h"
+
+static const char *const s_lcd_step_labels[] = {
+  "\xc9\xec\xcb\xf5\xb8\xcb\xcb\xf5\xbb\xd8", /* 伸缩杆缩回 */
+  "\xbc\xcc\xb5\xe7\xc6\xf7\x4b\x33", /* 继电器K3 */
+  "\xbc\xa4\xbb\xee\xb4\xb0\xbf\xda", /* 激活窗口 */
+  "\xb7\xa2\xcb\xcd\xc7\xd0\xb8\xee", /* 发送切割 */
+  "\xb5\xc8\xb4\xfd\xc7\xd0\xb8\xee", /* 等待切割 */
+  "\xc9\xec\xcb\xf5\xb8\xcb\xc9\xec\xb3\xf6", /* 伸缩杆伸出 */
+  "\xbc\xcc\xb5\xe7\xc6\xf7\x4b\x34", /* 继电器K4 */
+  "\xbb\xd8\xb5\xbd\xb4\xb0\xbf\xda", /* 回到窗口 */
+  "\xb5\xaf\xb4\xb0\xc8\xb7\xc8\xcf", /* 弹窗确认 */
+  "\xb5\xf7\xd3\xc3\xd7\xe9", /* 调用组 */
+  "\xcc\xf5\xbc\xfe", /* 条件 */
+  "\xcd\xa3\xd6\xb9", /* 停止 */
+  "\xc6\xe4\xcb\xfb", /* 其他 */
+  "\xb7\xe4\xc3\xf9\xc6\xf7", /* 蜂鸣器 */
+  "\xb5\xc8\xd7\xb4\xcc\xac", /* 等状态 */
+};
+
+const uint8_t g_lcd_step_label_count = sizeof(s_lcd_step_labels) / sizeof(s_lcd_step_labels[0]);
+
+const char *LcdUiLabels_Get(uint8_t id)
+{
+  if (id >= g_lcd_step_label_count)
+    return s_lcd_step_labels[g_lcd_step_label_count - 1u];
+  return s_lcd_step_labels[id];
+}

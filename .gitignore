@@ -1,0 +1,27 @@
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.Python
+*.log
+
+# Keil / STM32 build outputs (keep project uvoptx/dbgconf)
+Objects/
+Listings/
+*.uvguix.*
+*.dep
+*.htm
+*.lnp
+*.map
+*.lst
+*.d
+*.o
+*.crf
+*.axf
+
+# Electron
+out/
+
+# OS
+.DS_Store
+Thumbs.db

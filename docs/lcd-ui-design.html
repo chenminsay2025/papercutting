@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PaperCutting · 240×320 单页 LCD UI</title>
+  <style>
+    :root {
+      --lcd-w: 240px;
+      --lcd-h: 320px;
+      --scale: 2;
+      --bg: #0a0c10;
+      --panel: #121820;
+      --line: #2a3544;
+      --border-dim: #1a2228;
+      --cyan: #18d4e0;
+      --cyan-dim: #0e6e76;
+      --text: #e8eef5;
+      --muted: #7a8a9a;
+      --step-pending: #4a5560;
+      --ok: #3ddc84;
+      --done: #5a6878;
+      --warn: #ffcc33;
+      --bad: #ff5c5c;
+      --font: "Segoe UI", "Microsoft YaHei", sans-serif;
+      --mono: "Cascadia Mono", "Consolas", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: #1a1f28;
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    h1 { font-size: 1.3rem; font-weight: 600; margin-bottom: 6px; }
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-bottom: 22px;
+      max-width: 820px;
+      line-height: 1.5;
+    }
+
+    .layout {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      align-items: flex-start;
+    }
+
+    .lcd-shell {
+      background: #222;
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 10px 36px rgba(0,0,0,.4);
+    }
+
+    .lcd-label {
+      text-align: center;
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    .lcd {
+      width: calc(var(--lcd-w) * var(--scale));
+      height: calc(var(--lcd-h) * var(--scale));
+      background: var(--bg);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .screen {
+      width: var(--lcd-w);
+      height: var(--lcd-h);
+      transform: scale(var(--scale));
+      transform-origin: top left;
+      display: flex;
+      flex-direction: column;
+      padding: 6px 10px 7px;
+      position: relative;
+    }
+
+    .hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 4px;
+      margin-bottom: 4px;
+    }
+
+    .hdr-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: .03em;
+    }
+
+    .hdr-badge {
+      font-size: 9px;
+      font-family: var(--mono);
+      color: var(--muted);
+      padding: 2px 5px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      margin-bottom: 8px;
+      min-height: 35px;
+    }
+
+    .status-bar img {
+      width: 70px;
+      height: 35px;
+      image-rendering: pixelated;
+    }
+
+    .chip {
+      background: transparent;
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      padding: 6px 2px;
+      text-align: center;
+    }
+
+    .chip-label { font-size: 9px; color: var(--muted); margin-bottom: 2px; }
+    .chip-val { font-size: 11px; font-weight: 600; }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    .info { color: var(--cyan); }
+
+    .step-block {
+      flex: 1;
+      background: transparent;
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      padding: 4px 6px;
+      margin-bottom: 6px;
+      display: flex;
+      flex-direction: column;
+      min-height: 178px;
+      max-height: 178px;
+    }
+
+    .step-viewport {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .step-list {
+      transition: transform 0.35s ease-out;
+      will-change: transform;
+    }
+
+    .step-line {
+      font-size: 11px;
+      line-height: 18px;
+      height: 18px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text);
+    }
+
+    .step-line.done { color: var(--done); }
+    .step-line.cur { color: var(--cyan); font-weight: 600; }
+    .step-line.pending { color: var(--step-pending); }
+    .step-line.idle { color: var(--step-pending); font-style: italic; }
+
+    .meta-line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .meta-line span em {
+      font-style: normal;
+      color: var(--cyan);
+      font-weight: 600;
+    }
+
+    .prog-bar {
+      height: 5px;
+      background: transparent;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+
+    .prog-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--cyan);
+    }
+
+    .footer {
+      font-size: 8px;
+      color: var(--muted);
+      text-align: left;
+      line-height: 1.35;
+      padding-top: 2px;
+    }
+
+    .side { flex: 1; min-width: 280px; max-width: 520px; }
+    .side h2 { font-size: .95rem; color: var(--cyan); margin: 18px 0 8px; }
+    .side h2:first-child { margin-top: 0; }
+
+    .ctrl { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .ctrl-btn {
+      font-family: var(--font);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 7px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .ctrl-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+    .ctrl-btn.primary { background: var(--cyan-dim); border-color: var(--cyan); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+      margin-bottom: 10px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 5px 7px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--panel); color: var(--cyan); }
+
+    code {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      background: #1a222c;
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: #9ae6ff;
+    }
+
+    .note {
+      background: #152028;
+      border-left: 3px solid var(--cyan);
+      padding: 9px 11px;
+      font-size: 11.5px;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    .wireframe {
+      font-family: var(--mono);
+      font-size: 10px;
+      line-height: 1.45;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 10px;
+      color: var(--muted);
+      white-space: pre;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>PaperCutting · 240×320 单页 LCD UI</h1>
+<p class="subtitle">
+  精简为<strong>一页</strong>，无翻页。动作区显示<strong>已勾选完整步骤列表</strong>（最多 16 步，可见 8 行 × 18px），执行时当前行青色高亮并自动滚动。底部保留<strong>总进度条</strong>（纯色、无描边，按 1% 步进刷新）；不显示步骤计数、百分比数字、循环轮次及右上角状态角标。
+</p>
+
+<div class="layout">
+  <div class="lcd-shell">
+    <div class="lcd-label">ST7735 · 240 × 320 · 竖屏 · gb16 字库</div>
+    <div class="lcd">
+      <div class="screen">
+        <div class="status-bar">
+          <img id="v-usb" src="../LCDimg/USB已连接.png" alt="USB" />
+          <img id="v-paper" src="../LCDimg/已压纸.png" alt="压纸" />
+          <img id="v-obs" src="../LCDimg/传感器未遮挡.png" alt="遮挡" />
+        </div>
+
+        <div class="step-block">
+          <div class="step-viewport">
+            <div class="step-list" id="step-list">
+              <div class="step-line idle">等待开始…</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="prog-bar"><div class="prog-fill" id="v-prog"></div></div>
+
+        <div class="footer">PB8 按下缩/伸 · 3s</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="side">
+    <h2>交互演示</h2>
+    <div class="ctrl">
+      <button class="ctrl-btn" onclick="syncStepList()">同步已勾选列表</button>
+      <button class="ctrl-btn primary" onclick="simulateRun()">模拟开始流程</button>
+      <button class="ctrl-btn" onclick="simulateIdle()">模拟结束</button>
+    </div>
+
+    <h2>布局线框（240×320 px）</h2>
+    <div class="wireframe">┌────────────────────────────────┐  0
+│ [USB已连] [已压纸]               │  6–41
+├───────────────────────────────┤
+│  1. 伸缩杆缩回                   │
+│  2. 继电器K3                     │  48–226
+│ ▶3. 激活窗口      (当前·滚动)   │  8 行 × 18px
+│  4. 发送切割                     │
+│  …                               │
+├───────────────────────────────┤
+│ ████████░░░░░░  总进度条        │  228–233
+│ PB8 按下缩/伸 · 3s              │  240
+└────────────────────────────────┘  320</div>
+
+    <h2>显示项</h2>
+    <table>
+      <tr><th>项</th><th>来源</th></tr>
+      <tr><td>USB / 压纸状态图</td><td><code>LCDimg/</code> 位图；<code>Protocol_IsCommActive</code>、<code>RodSensor_IsHome</code></td></tr>
+      <tr><td>动作列表</td><td><code>UI_STEPS</code> / <code>UI_STEPIDX</code> — 完整列表 + 当前行高亮</td></tr>
+      <tr><td>总进度条</td><td><code>UI_PROGRESS:N</code> — 纯色填充、增量刷新；<code>UI_PROGRESS:OFF</code> 清除</td></tr>
+      <tr><td>页脚</td><td>PB8 本地按键提示（固定文案）</td></tr>
+    </table>
+
+    <h2>串口 UI 命令（接收但不画屏）</h2>
+    <table>
+      <tr><th>命令</th><th>说明</th></tr>
+      <tr><td><code>UI_STEPS:…</code> / <code>UI_STEPIDX:N</code></td><td>动作列表同步与高亮（<strong>屏幕可见</strong>）</td></tr>
+      <tr><td><code>UI_PROGRESS:N</code> / <code>OFF</code></td><td>总进度条（<strong>屏幕可见</strong>，1% 步进、无动画）</td></tr>
+      <tr><td><code>UI_META</code> / <code>UI_PHASE</code> / <code>UI_LOOP</code></td><td>后端仍发送；固件<strong>不再显示</strong>步骤计数、百分比数字、角标</td></tr>
+    </table>
+
+    <h2>固件文件</h2>
+    <table>
+      <tr><th>模块</th><th>文件</th></tr>
+      <tr><td>单页 UI + 8 行视口滚动</td><td><code>firmware/User/lcd_ui.c</code></td></tr>
+      <tr><td>步骤短名 gb16</td><td><code>firmware/User/lcd_ui_labels.c</code></td></tr>
+      <tr><td>串口解析</td><td><code>firmware/User/protocol.c</code></td></tr>
+      <tr><td>列表同步 / 推送</td><td><code>python/workflow.py</code>、<code>controller.py</code></td></tr>
+      <tr><td>窗口实时同步</td><td><code>electron/renderer/app.js</code> — <code>sync_lcd_steps</code></td></tr>
+    </table>
+
+    <p class="note">
+      列表最多 16 步；视口可见 8 行。空闲时全部同色；运行中：已完成=灰绿、当前=青色、未执行=暗灰。
+    </p>
+  </div>
+</div>
+
+<script>
+  const STEP_LOG = [
+    '1. 伸缩杆缩回',
+    '2. 继电器K3',
+    '3. 激活窗口',
+    '4. 发送切割',
+    '5. 等待切割',
+    '6. 伸缩杆伸出',
+    '7. 继电器K4',
+  ];
+  const LINE_H = 18;
+  const VISIBLE = 8;
+
+  let stepTimer = null;
+  let progTimer = null;
+  let pct = 0;
+  let currentIdx = -1;
+  let listSynced = false;
+
+  function updateProg() {
+    const fill = document.getElementById('v-prog');
+    if (fill) fill.style.width = pct + '%';
+  }
+
+  function renderStepList() {
+    const list = document.getElementById('step-list');
+    list.innerHTML = '';
+
+    if (!listSynced) {
+      list.innerHTML = '<div class="step-line idle">等待开始…</div>';
+      list.style.transform = '';
+      return;
+    }
+
+    for (let i = 0; i < STEP_LOG.length; i++) {
+      const div = document.createElement('div');
+      let cls = 'step-line';
+      if (currentIdx < 0) {
+        cls += ' idle';
+      } else if (i < currentIdx) {
+        cls += ' done';
+      } else if (i === currentIdx) {
+        cls += ' cur';
+      } else {
+        cls += ' pending';
+      }
+      div.className = cls;
+      div.textContent = STEP_LOG[i];
+      list.appendChild(div);
+    }
+
+    if (currentIdx >= 0 && STEP_LOG.length > VISIBLE) {
+      let scrollStart = Math.max(0, currentIdx - VISIBLE + 1);
+      if (currentIdx < scrollStart) scrollStart = currentIdx;
+      list.style.transform = scrollStart ? `translateY(-${scrollStart * LINE_H}px)` : '';
+    } else {
+      list.style.transform = '';
+    }
+  }
+
+  function syncStepList() {
+    listSynced = true;
+    currentIdx = -1;
+    renderStepList();
+  }
+
+  function setRunning(on) {
+    if (!on) {
+      currentIdx = -1;
+      pct = 0;
+      updateProg();
+      renderStepList();
+    }
+  }
+
+  function simulateRun() {
+    if (stepTimer) clearInterval(stepTimer);
+    if (progTimer) clearInterval(progTimer);
+    syncStepList();
+    setRunning(true);
+    currentIdx = 0;
+    pct = 0;
+    updateProg();
+    renderStepList();
+    stepTimer = setInterval(() => {
+      if (currentIdx < STEP_LOG.length - 1) {
+        currentIdx++;
+        renderStepList();
+      } else {
+        clearInterval(stepTimer);
+        stepTimer = null;
+      }
+    }, 900);
+    progTimer = setInterval(() => {
+      pct += 1;
+      if (pct >= 100) {
+        pct = 100;
+        updateProg();
+        clearInterval(progTimer);
+        progTimer = null;
+        setTimeout(simulateIdle, 1200);
+        return;
+      }
+      updateProg();
+    }, 200);
+  }
+
+  function simulateIdle() {
+    if (stepTimer) clearInterval(stepTimer);
+    if (progTimer) clearInterval(progTimer);
+    stepTimer = null;
+    progTimer = null;
+    setRunning(false);
+  }
+</script>
+</body>
+</html>

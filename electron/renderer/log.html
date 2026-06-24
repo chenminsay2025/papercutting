@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PaperCutting 日志</title>
+    <link rel="icon" type="image/png" href="../assets/icon.png" />
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .log-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 10px;
+        background: #1e293b;
+        border-bottom: 1px solid #334155;
+        flex-shrink: 0;
+      }
+      .log-toolbar h1 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .log-toolbar button {
+        padding: 5px 10px;
+        border-radius: 5px;
+        border: 1px solid #475569;
+        background: #334155;
+        color: #e2e8f0;
+        cursor: pointer;
+        font: inherit;
+        font-size: 13px;
+      }
+      .log-toolbar button:hover { background: #475569; }
+      #logView {
+        flex: 1;
+        margin: 0;
+        padding: 10px 12px;
+        overflow: auto;
+        font-size: 13px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        word-break: break-word;
+        user-select: text;
+        -webkit-user-select: text;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="log-toolbar">
+      <h1>运行日志</h1>
+      <button id="clearLogBtn" type="button">清空</button>
+    </div>
+    <pre id="logView"></pre>
+    <script src="log.js"></script>
+  </body>
+</html>

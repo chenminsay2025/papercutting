@@ -1,0 +1,53 @@
+---
+description: STM32 固件 Keil 编译与烧录约定；修改字体/固件后必须先 Build 再 Download
+globs: firmware/**/*
+alwaysApply: false
+---
+
+# Keil 固件编译与烧录
+
+## 错误现象
+
+`Flash Download failed - Could not load file ...\firmware\Objects\CutPPaper.axf`
+
+**含义**：Keil 找不到可烧录文件，不是 ST-LINK 坏了。根因几乎都是 **上次 Build 失败或未 Build**。
+
+## 正确顺序
+
+修改 `firmware/User/`、`lcd_font_gb16.c`、字体导入脚本后：
+
+1. **先 Build（F7）** — 必须 0 Error(s)，Output 窗口出现 `CutPPaper.axf`
+2. **再 Download（F8）** — 仅在上一步成功后执行
+
+禁止只点 Download 而不 Build；禁止 Build 有错误仍尝试烧录。
+
+## 修改字库后的完整流程
+
+```powershell
+cd lcd-font-studio
+python export_cutppaper_aa.py
+```
+
+然后在 Keil 中 **Rebuild**，确认：
+
+- `firmware/Objects/CutPPaper.axf` 存在
+- Build Log 末尾为 `0 Error(s), 0 Warning(s)`（或仅可接受 warning）
+
+## 常见编译失败
+
+| 错误 | 处理 |
+|------|------|
+| `LCD_GB16_MSK_BYTES is undefined` | 检查 `lcd_font_gb16.h` 是否定义 `LCD_GB16_MSK_BYTES` |
+| `Target not created` | 有编译/链接错误，看 Build Output 第一个 error |
+| 改了 `.c` 但 axf 时间戳未变 | 执行 Rebuild All，不要只 Flash |
+
+## 输出路径（勿改）
+
+- 工程：`firmware/CutPPaper.uvprojx`
+- 输出：`firmware/Objects/CutPPaper.axf`
+
+项目若移动目录，Keil 会仍指向新路径；若 H: 盘不可用，需在本机重新打开工程并 Build。
+
+## Agent 约定
+
+修改固件或重新导出字体后，应提醒用户 **Keil Rebuild → 确认 axf 存在 → 再 Download**；若用户报 Flash Download failed，先查 `firmware/Objects/CutPPaper.build_log.htm` 是否有编译错误。
